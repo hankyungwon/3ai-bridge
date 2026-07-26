@@ -252,7 +252,7 @@ chrome.storage.onChanged.addListener((변경, 영역) => {
 async function 답변모으기() {
   const 버튼 = document.getElementById("모으기버튼");
   버튼.disabled = true;
-  버튼.textContent = "📋 모으는 중…";
+  버튼.textContent = "모으는 중…";
   try {
     const 응답 = await chrome.runtime.sendMessage({ 종류: "답변수집" });
     const 결과 = (응답 && 응답.결과) || {};
@@ -289,7 +289,7 @@ async function 답변모으기() {
     document.getElementById("상태").textContent = 요약.join(" ");
   } finally {
     버튼.disabled = false;
-    버튼.textContent = "📋 세 답변 모으기 (클립보드 복사)";
+    버튼.textContent = "답변 모으기";
   }
 }
 

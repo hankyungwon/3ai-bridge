@@ -45,11 +45,14 @@ body.바 button.주요 {
   padding: 10px 16px;
   white-space: nowrap;
 }
+/* 리모컨 글자 버튼: 본문(13px)보다 살짝 작은 12.5px — 작지도 크지도 않게 */
 body.바 button.보조 {
   flex: none;
-  padding: 8px 10px;
-  font-size: 15px;
+  padding: 8px 11px;
+  font-size: 12.5px;
   border-radius: 10px;
+  white-space: nowrap;
+  color: #333;
 }
 .브랜드 {
   background: linear-gradient(90deg, #2f6fed, #7c3aed);
@@ -86,8 +89,10 @@ body.바 button.보조 {
   background: #eef3ff;
 }
 .보조설정 {
-  font-size: 16px;
+  font-size: 12.5px;
   text-decoration: none;
+  white-space: nowrap;
+  padding: 8px 4px;
 }
 body.바 .체크줄 {
   display: flex;
