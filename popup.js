@@ -4,6 +4,8 @@
 
 const 사이트목록 = ["claude", "chatgpt", "gemini"];
 const 사이트이름 = { claude: "Claude", chatgpt: "ChatGPT", gemini: "Gemini" };
+// 3대장의 별명 — 창 전환 버튼에 표시됩니다
+const 사이트별명 = { gemini: "🕊️제비", chatgpt: "🐤참새", claude: "🦛하마" };
 let 현재설정 = null;
 
 /** 화면을 처음 그립니다. */
@@ -35,8 +37,8 @@ async function 초기화() {
   전환줄.innerHTML = "";
   현재설정.창순서.forEach((키, i) => {
     const 버튼 = document.createElement("button");
-    버튼.className = "보조";
-    버튼.textContent = 사이트이름[키];
+    버튼.className = "전환버튼";
+    버튼.textContent = 사이트별명[키] || 사이트이름[키];
     버튼.title = `${사이트이름[키]} 창을 앞으로 (Alt+${[1, 2, 4][i]})`;
     버튼.addEventListener("click", () => {
       chrome.runtime.sendMessage({ 종류: "창포커스", 사이트: 키 });

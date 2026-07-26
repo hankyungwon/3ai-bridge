@@ -49,19 +49,41 @@ body.바 button.보조 {
   flex: none;
   padding: 8px 10px;
   font-size: 15px;
+  border-radius: 10px;
+}
+.브랜드 {
+  background: linear-gradient(90deg, #2f6fed, #7c3aed);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 .구분선 {
   width: 1px;
   align-self: stretch;
   background: #ddd;
 }
+/* 창 전환 버튼: 하나로 이어진 알약(세그먼트) 모양 */
 .전환묶음 {
   display: flex;
-  gap: 4px;
+  gap: 0;
+  border: 1px solid #dcdfe4;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #fff;
 }
-.전환묶음 button {
-  padding: 8px 10px;
+.전환버튼 {
+  border: none;
+  border-radius: 0;
+  border-right: 1px solid #eceef1;
+  padding: 8px 12px;
   white-space: nowrap;
+  font-size: 12.5px;
+}
+.전환버튼:last-child {
+  border-right: none;
+}
+.전환버튼:hover {
+  background: #eef3ff;
 }
 .보조설정 {
   font-size: 16px;
@@ -129,19 +151,33 @@ textarea {
 }
 button {
   padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  background: #f4f4f4;
+  border-radius: 8px;
+  border: 1px solid #dcdfe4;
+  background: #fff;
   cursor: pointer;
   font: inherit;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s,
+    transform 0.05s;
+}
+button:hover {
+  background: #f0f4ff;
+  border-color: #9db9f5;
+}
+button:active {
+  transform: translateY(1px);
 }
 button.주요 {
   width: 100%;
   margin-top: 10px;
-  background: #2f6fed;
-  border-color: #2f6fed;
+  background: linear-gradient(180deg, #3d7bf0, #2f6fed);
+  border-color: #2b64d6;
   color: #fff;
   font-weight: 600;
+  box-shadow: 0 1px 3px rgba(47, 111, 237, 0.35);
+}
+button.주요:hover {
+  background: linear-gradient(180deg, #4b86f4, #3d78ee);
+  border-color: #2b64d6;
 }
 button.주요:disabled {
   opacity: 0.6;
