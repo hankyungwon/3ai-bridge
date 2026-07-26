@@ -47,16 +47,21 @@ async function 화면영역구하기() {
 
 /**
  * 해당 사이트가 이미 열려 있는 탭을 찾습니다. 없으면 null.
- * 같은 사이트 탭이 여러 개면 "가장 최근에 본 탭"을 골라,
- * 후속 질문이 사용자가 실제로 보던 대화에 이어지게 합니다.
+ * - 아직 로딩 중인 탭(pendingUrl)과 일시적 오류 상태의 탭도 놓치지 않도록,
+ *   URL 패턴 검색 대신 전체 탭을 직접 확인합니다.
+ * - 같은 사이트 탭이 여러 개면 "가장 최근에 본 탭"을 골라,
+ *   후속 질문이 사용자가 실제로 보던 대화에 이어지게 합니다.
  */
 async function 기존탭찾기(사이트키) {
-  const 설정 = BRIDGE_SELECTORS[사이트키];
-  const 패턴 = 설정.호스트.map((h) => `*://${h}/*`);
-  const 탭들 = await chrome.tabs.query({ url: 패턴 });
-  if (!탭들.length) return null;
-  탭들.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
-  return 탭들[0];
+  const 호스트들 = BRIDGE_SELECTORS[사이트키].호스트;
+  const 전체탭 = await chrome.tabs.query({});
+  const 일치 = 전체탭.filter((t) => {
+    const 주소 = t.url || t.pendingUrl || "";
+    return 호스트들.some((h) => 주소.includes("://" + h));
+  });
+  if (!일치.length) return null;
+  일치.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
+  return 일치[0];
 }
 
 /** 잠깐 기다리는 도우미 (밀리초) */
@@ -79,10 +84,86 @@ async function 탭준비대기(탭ID) {
 }
 
 /**
- * 3개 창을 열고 가로 3등분 배치합니다.
+ * 실제로 적용할 배치 모드를 정합니다.
+ * "auto"면 화면 폭으로 판단: 1600px 미만(노트북급)은 겹침, 그 이상은 3분할.
+ */
+function 실효배치모드(설정, 영역) {
+  if (설정.배치모드 === "thirds" || 설정.배치모드 === "overlap") {
+    return 설정.배치모드;
+  }
+  return 영역.width < 1600 ? "overlap" : "thirds";
+}
+
+/**
+ * 모드에 따라 사이트별 창 위치를 계산합니다.
+ * - 3분할(thirds): 각 창이 1/3 폭으로 나란히
+ * - 겹침(overlap): 각 창이 1/2 폭.
+ *     왼쪽 창은 화면 왼쪽 절반, 오른쪽 창은 화면 오른쪽 절반,
+ *     가운데 창은 화면 중앙(1/4~3/4 지점)에서 양쪽을 반씩 가리며 맨 앞.
+ */
+function 배치계산(영역, 순서, 모드) {
+  const 위치들 = {};
+  const 공통 = { top: 영역.top, height: 영역.height };
+
+  if (모드 === "overlap") {
+    const 반 = Math.floor(영역.width / 2);
+    위치들[순서[0]] = { left: 영역.left, width: 반, ...공통 };
+    위치들[순서[2]] = { left: 영역.left + 영역.width - 반, width: 반, ...공통 };
+    위치들[순서[1]] = { left: 영역.left + Math.floor(영역.width / 4), width: 반, ...공통 };
+  } else {
+    const 폭 = Math.floor(영역.width / 순서.length);
+    순서.forEach((키, i) => {
+      const 마지막 = i === 순서.length - 1;
+      위치들[키] = {
+        left: 영역.left + 폭 * i,
+        // 마지막 창은 나누고 남은 픽셀까지 채워 화면 오른쪽에 틈이 없게 합니다.
+        width: 마지막 ? 영역.width - 폭 * (순서.length - 1) : 폭,
+        ...공통,
+      };
+    });
+  }
+  return 위치들;
+}
+
+/** 한 사이트 창을 지정 위치로 배치하고 탭 ID를 반환합니다. */
+async function 사이트창배치(사이트키, 위치) {
+  const 사이트 = BRIDGE_SELECTORS[사이트키];
+  const 기존 = await 기존탭찾기(사이트키);
+  if (기존) {
+    const 창 = await chrome.windows.get(기존.windowId, { populate: true });
+    if (창.tabs && 창.tabs.length > 1) {
+      // 다른 탭들과 같은 창에 있으면 이 탭만 떼어내 전용 창으로 만듭니다.
+      // (사용자의 메인 브라우저 창을 건드리지 않음)
+      await chrome.windows.create({
+        tabId: 기존.id,
+        type: "normal",
+        focused: false,
+        ...위치,
+      });
+    } else {
+      // 전용 창이면 위치만 다시 잡습니다.
+      // (최대화 상태에서는 크기 지정이 무시되므로 먼저 보통 상태로 되돌립니다)
+      if (창.state !== "normal") {
+        await chrome.windows.update(창.id, { state: "normal" });
+      }
+      await chrome.windows.update(창.id, 위치);
+    }
+    await chrome.tabs.update(기존.id, { active: true });
+    return 기존.id;
+  }
+  const 새창 = await chrome.windows.create({
+    url: 사이트.시작URL,
+    type: "normal",
+    focused: false,
+    ...위치,
+  });
+  return 새창.tabs && 새창.tabs[0] ? 새창.tabs[0].id : null;
+}
+
+/**
+ * 3개 창을 열고 배치합니다 (모드에 따라 3분할 또는 겹침).
  * - 이미 열려 있는 사이트는 새로 열지 않고 재사용합니다(대화 유지).
- * - 사이트 탭이 다른 탭들과 한 창에 섞여 있으면, 그 창 전체를 옮기는 대신
- *   해당 탭만 떼어내 전용 창으로 만듭니다. (사용자의 메인 창을 건드리지 않음)
+ * - 겹침 모드에서는 가운데 창을 마지막에 배치·포커스해 맨 앞에 둡니다.
  * - 방금 만든/찾은 탭의 ID 지도를 반환해, 전송 단계가 탭을 다시 검색하다
  *   놓치는 일이 없게 합니다.
  */
@@ -90,58 +171,73 @@ async function 창정리() {
   const 설정 = await 설정불러오기();
   const 순서 = 설정.창순서;
   const 영역 = await 화면영역구하기();
-  const 폭 = Math.floor(영역.width / 순서.length);
+  const 모드 = 실효배치모드(설정, 영역);
+  const 위치들 = 배치계산(영역, 순서, 모드);
   const 탭지도 = {};
 
-  for (let i = 0; i < 순서.length; i++) {
-    const 사이트키 = 순서[i];
-    const 사이트 = BRIDGE_SELECTORS[사이트키];
-    const 마지막 = i === 순서.length - 1;
-    const 위치 = {
-      left: 영역.left + 폭 * i,
-      top: 영역.top,
-      // 마지막 창은 나누고 남은 픽셀까지 채워 화면 오른쪽에 틈이 없게 합니다.
-      width: 마지막 ? 영역.width - 폭 * (순서.length - 1) : 폭,
-      height: 영역.height,
-    };
+  // 겹침 모드에서는 가운데(순서[1])를 마지막에 처리해 맨 앞에 오게 합니다.
+  const 처리순서 =
+    모드 === "overlap" ? [순서[0], 순서[2], 순서[1]] : [...순서];
 
+  for (const 사이트키 of 처리순서) {
     try {
-      const 기존 = await 기존탭찾기(사이트키);
-      if (기존) {
-        const 창 = await chrome.windows.get(기존.windowId, { populate: true });
-        if (창.tabs && 창.tabs.length > 1) {
-          // 다른 탭들과 같은 창에 있으면 이 탭만 떼어내 전용 창으로 만듭니다.
-          await chrome.windows.create({
-            tabId: 기존.id,
-            type: "normal",
-            focused: false,
-            ...위치,
-          });
-        } else {
-          // 전용 창이면 위치만 다시 잡습니다.
-          // (최대화 상태에서는 크기 지정이 무시되므로 먼저 보통 상태로 되돌립니다)
-          if (창.state !== "normal") {
-            await chrome.windows.update(창.id, { state: "normal" });
-          }
-          await chrome.windows.update(창.id, 위치);
-        }
-        await chrome.tabs.update(기존.id, { active: true });
-        탭지도[사이트키] = 기존.id;
-      } else {
-        const 새창 = await chrome.windows.create({
-          url: 사이트.시작URL,
-          type: "normal",
-          focused: false,
-          ...위치,
-        });
-        탭지도[사이트키] = 새창.tabs && 새창.tabs[0] ? 새창.tabs[0].id : null;
-      }
+      탭지도[사이트키] = await 사이트창배치(사이트키, 위치들[사이트키]);
     } catch (e) {
       // 한 창 배치가 실패해도 나머지 창 배치는 계속합니다.
-      탭지도[사이트키] = 탭지도[사이트키] || null;
+      탭지도[사이트키] = null;
+    }
+  }
+
+  // 겹침 모드: 가운데 창을 앞으로 (호버 포커스 판단용으로 모드도 기억)
+  await chrome.storage.session.set({ 현재배치모드: 모드 });
+  if (모드 === "overlap" && 탭지도[순서[1]]) {
+    try {
+      const 탭 = await chrome.tabs.get(탭지도[순서[1]]);
+      await chrome.windows.update(탭.windowId, { focused: true });
+    } catch (e) {
+      /* 무시 */
     }
   }
   return 탭지도;
+}
+
+/* ─────────────────── 리모컨 기능: 모두 닫기 / 새 대화 ─────────────────── */
+
+/** 세 사이트의 전용 창(또는 탭)을 한 번에 닫습니다. */
+async function 모두닫기() {
+  const 설정 = await 설정불러오기();
+  for (const 사이트키 of 설정.창순서) {
+    try {
+      const 탭 = await 기존탭찾기(사이트키);
+      if (!탭) continue;
+      const 창 = await chrome.windows.get(탭.windowId, { populate: true });
+      if (창.tabs && 창.tabs.length > 1) {
+        // 다른 탭과 같은 창이면 그 탭만 닫습니다.
+        await chrome.tabs.remove(탭.id);
+      } else {
+        await chrome.windows.remove(창.id);
+      }
+    } catch (e) {
+      /* 한 곳 실패해도 나머지는 계속 */
+    }
+  }
+}
+
+/** 세 사이트 모두 새 대화 화면으로 이동합니다(열려 있는 곳만). */
+async function 새대화시작() {
+  const 설정 = await 설정불러오기();
+  for (const 사이트키 of 설정.창순서) {
+    try {
+      const 탭 = await 기존탭찾기(사이트키);
+      if (탭) {
+        await chrome.tabs.update(탭.id, {
+          url: BRIDGE_SELECTORS[사이트키].시작URL,
+        });
+      }
+    } catch (e) {
+      /* 무시 */
+    }
+  }
 }
 
 /* ─────────────────────── 떠 있는 명령창 (드래그 가능) ─────────────────────── */
@@ -257,7 +353,37 @@ function 본문만들기(프로필, 사이트키, 질문) {
   return 접두어 + 질문;
 }
 
-chrome.runtime.onMessage.addListener((메시지, _발신, 응답) => {
+chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
+  // 겹침 모드에서 마우스가 어떤 AI 창 위에 잠시 머물면
+  // 그 창을 앞으로 가져옵니다 (content.js가 보내는 신호).
+  if (메시지.종류 === "호버포커스" && 발신.tab) {
+    (async () => {
+      const 설정 = await 설정불러오기();
+      const { 현재배치모드 } = await chrome.storage.session.get("현재배치모드");
+      if (설정.호버포커스 && 현재배치모드 === "overlap") {
+        try {
+          await chrome.windows.update(발신.tab.windowId, { focused: true });
+        } catch (e) {
+          /* 창이 닫혔으면 무시 */
+        }
+      }
+      응답({ 성공: true });
+    })();
+    return true;
+  }
+
+  if (메시지.종류 === "모두닫기") {
+    모두닫기().then(() => 응답({ 성공: true }));
+    return true;
+  }
+
+  if (메시지.종류 === "새대화") {
+    새대화시작()
+      .then(() => 명령창앞으로())
+      .then(() => 응답({ 성공: true }));
+    return true;
+  }
+
   if (메시지.종류 === "창정리") {
     창정리()
       .then(() => 명령창앞으로())

@@ -15,6 +15,24 @@
       <select id="순서2"></select>
     </div>
 
+    <h2>창 배치 방식</h2>
+    <p class="설명">
+      <b>겹침 배치</b>는 노트북처럼 좁은 화면용입니다. 각 창이 화면의 절반 폭을
+      차지하고, 가운데 창이 양옆 창을 반씩 가리며 맨 앞에 옵니다. 보고 싶은
+      창에 마우스를 올리면(0.4초) 그 창이 앞으로 나옵니다.
+    </p>
+    <div class="줄">
+      <select id="배치모드">
+        <option value="auto">자동 (넓은 화면=3분할, 좁은 화면=겹침)</option>
+        <option value="thirds">항상 3분할</option>
+        <option value="overlap">항상 겹침</option>
+      </select>
+      <label class="체크"
+        ><input type="checkbox" id="호버포커스" /> 마우스를 올리면 그 창을
+        앞으로</label
+      >
+    </div>
+
     <h2>프로필</h2>
     <p class="설명">
       접두어는 질문 앞에 자동으로 붙는 지시문입니다. 사이트별 접두어를 채우면

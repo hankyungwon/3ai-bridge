@@ -127,3 +127,41 @@ a {
   color: #2f6fed;
   font-size: 12px;
 }
+.리모컨 button {
+  flex: 1;
+}
+.이력머리 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+}
+.이력머리 .라벨 {
+  margin: 0;
+}
+.이력 {
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #e2e2e2;
+  border-radius: 6px;
+  margin-top: 4px;
+  padding: 4px;
+}
+.이력항목 {
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #444;
+}
+.이력항목:hover {
+  background: #eef3ff;
+}
+.체크 {
+  white-space: nowrap;
+}
+.체크 input {
+  width: auto;
+}

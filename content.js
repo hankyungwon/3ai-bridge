@@ -335,6 +335,33 @@
     return { 시도: true, 성공: false, 사유: "선택 확인 실패" };
   }
 
+  /* ─────────────── 호버 포커스 (겹침 배치용) ───────────────
+   * 이 창이 뒤에 가려져 있을 때(포커스 없음) 마우스를 올리고
+   * 잠깐(0.4초) 머물면 백그라운드에 "나를 앞으로" 신호를 보냅니다.
+   * 실제로 앞으로 가져올지는 백그라운드가 설정·배치 모드를 보고 결정합니다.
+   */
+  let 호버타이머 = null;
+  document.addEventListener("mousemove", () => {
+    if (document.hasFocus()) return; // 이미 앞에 있으면 아무것도 안 함
+    if (호버타이머) return; // 대기 중이면 중복 예약 안 함
+    호버타이머 = setTimeout(() => {
+      호버타이머 = null;
+      if (!document.hasFocus()) {
+        try {
+          chrome.runtime.sendMessage({ 종류: "호버포커스" }).catch(() => {});
+        } catch (e) {
+          /* 확장이 재시작된 직후 등 — 무시 */
+        }
+      }
+    }, 400);
+  });
+  document.addEventListener("mouseleave", () => {
+    if (호버타이머) {
+      clearTimeout(호버타이머);
+      호버타이머 = null;
+    }
+  });
+
   chrome.runtime.onMessage.addListener((메시지, _발신, 응답) => {
     if (메시지.종류 !== "질문전송") return;
 
