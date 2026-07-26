@@ -7,23 +7,84 @@ body {
   margin: 0;
   padding: 12px;
 }
-/* ───────── 하단 가로 명령바 레이아웃 ───────── */
+/* ───────── 하단 가로 명령바 레이아웃 ─────────
+ * 왼쪽 = 작성 카드(입력·프로필·대상·전송), 오른쪽 = 제어 그룹(전환·리모컨·상태)
+ */
 body.바 {
-  padding: 8px 12px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   overflow: hidden;
+  background: #fafbfd;
+  height: 100vh;
+  box-sizing: border-box;
 }
-.바줄 {
+.바그리드 {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 14px;
+  flex: none;
+  align-items: stretch;
+}
+/* 왼쪽 작성 카드 */
+.작성칸 {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #dcdfe4;
+  border-radius: 12px;
+  padding: 10px 12px;
+  gap: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+.작성칸:focus-within {
+  border-color: #7ea4f2;
+  box-shadow: 0 0 0 3px rgba(47, 111, 237, 0.12);
+}
+body.바 textarea#질문 {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 2px 2px;
+  min-height: 84px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.작성하단 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid #f0f1f3;
+  padding-top: 8px;
+}
+.작성하단 .체크줄 {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  flex: 1;
+  font-size: 12px;
+  color: #555;
+}
+/* 오른쪽 제어 그룹 */
+.제어칸 {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+.제어줄 {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: nowrap;
 }
-.바줄.얇게 {
+.상태묶음 {
   font-size: 12px;
   color: #555;
-  min-height: 18px;
+  overflow: hidden;
 }
 .브랜드 {
   font-weight: 700;
@@ -33,17 +94,13 @@ body.바 {
   width: 84px;
   flex: none;
 }
-body.바 textarea#질문 {
-  flex: 1;
-  resize: none;
-  min-height: 44px;
-}
 body.바 button.주요 {
   width: auto;
   margin: 0;
   flex: none;
-  padding: 10px 16px;
+  padding: 9px 22px;
   white-space: nowrap;
+  border-radius: 10px;
 }
 /* 리모컨 글자 버튼: 본문(13px)보다 살짝 작은 12.5px — 작지도 크지도 않게 */
 body.바 button.보조 {
@@ -93,12 +150,6 @@ body.바 button.보조 {
   text-decoration: none;
   white-space: nowrap;
   padding: 8px 4px;
-}
-body.바 .체크줄 {
-  display: flex;
-  gap: 10px;
-  margin: 0;
-  flex: none;
 }
 body.바 .상태 {
   margin: 0;
