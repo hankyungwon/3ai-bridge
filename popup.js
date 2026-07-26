@@ -5,7 +5,7 @@
 const 사이트목록 = ["claude", "chatgpt", "gemini"];
 const 사이트이름 = { claude: "Claude", chatgpt: "ChatGPT", gemini: "Gemini" };
 // 3대장의 별명 — 창 전환 버튼에 표시됩니다
-const 사이트별명 = { gemini: "🕊️제비", chatgpt: "🐤참새", claude: "🦛하마" };
+const 사이트별명 = { gemini: "제비", chatgpt: "참새", claude: "하마" };
 let 현재설정 = null;
 
 /** 화면을 처음 그립니다. */
