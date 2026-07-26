@@ -10,26 +10,13 @@ let 현재설정 = null;
 
 /** 화면을 처음 그립니다. */
 async function 초기화() {
-  // 창 제목에 이름과 버전을 깔끔하게 표시합니다 (뒤의 .0은 생략: 1.7.0 → v1.7)
+  // 창 제목에 이름과 버전을 깔끔하게 표시합니다 (뒤의 .0은 생략: 1.8.0 → v1.8)
   const 버전 = chrome.runtime.getManifest().version.replace(/\.0$/, "");
-  document.title = `AI 3대장(제비·참새·하마) 브리지 v${버전}`;
+  document.title = `AI 3대장(제비·참새·하마) 한프로 v${버전}`;
 
   현재설정 = await 설정불러오기();
-
-  const 프로필상자 = document.getElementById("프로필");
-  프로필상자.innerHTML = "";
-  for (const p of 현재설정.프로필) {
-    const opt = document.createElement("option");
-    opt.value = p.id;
-    opt.textContent = p.이름;
-    프로필상자.appendChild(opt);
-  }
-  프로필상자.value = 현재설정.선택프로필;
-
-  for (const 키 of 사이트목록) {
-    document.getElementById("사용_" + 키).checked =
-      현재설정.사이트사용[키] !== false;
-  }
+  // 프로필·대상 선택은 명령바에서 뺐습니다(⚙ 설정에서 관리).
+  // 명령바는 "3대장 지휘"에만 집중하고, 모델·수준은 각 AI 창에서 고릅니다.
 
   // 창 전환 버튼: 배치 순서(왼쪽→오른쪽)대로 만들어,
   // 가려진 창(특히 겹침 배치의 가운데 창)을 클릭 한 번에 앞으로 가져옵니다.
@@ -60,14 +47,13 @@ async function 초기화() {
   }
 }
 
-/** 선택 상태를 저장합니다. */
-async function 선택저장() {
-  현재설정.선택프로필 = document.getElementById("프로필").value;
-  현재설정.사이트사용 = {};
-  for (const 키 of 사이트목록) {
-    현재설정.사이트사용[키] = document.getElementById("사용_" + 키).checked;
-  }
-  await 설정저장(현재설정);
+/** 현재 적용 중인 프로필(⚙ 설정에서 선택)을 찾습니다. 없으면 표준 동작. */
+function 현재프로필() {
+  return (
+    현재설정.프로필.find((p) => p.id === 현재설정.선택프로필) ||
+    현재설정.프로필[0] ||
+    null
+  );
 }
 
 /** 사이트별 성공/실패를 팝업에 표시합니다. */
@@ -341,27 +327,23 @@ async function 전송() {
   const 질문 = 질문칸.value.trim();
   if (!질문) return;
 
-  await 선택저장();
-
   const 버튼 = document.getElementById("전송버튼");
   버튼.disabled = true;
   document.getElementById("상태").textContent = "전송 중…";
 
   // 입력칸은 비우고, 질문은 이력으로 내려보냅니다.
   // (실패하면 이력에서 클릭 한 번으로 다시 불러올 수 있습니다)
-  const 프로필상자 = document.getElementById("프로필");
-  const 프로필이름 = 프로필상자.selectedOptions[0]
-    ? 프로필상자.selectedOptions[0].textContent
-    : "표준";
+  const 프로필 = 현재프로필();
   질문칸.value = "";
-  await 이력에추가(질문, 프로필이름);
+  await 이력에추가(질문, 프로필 ? 프로필.이름 : "표준");
 
   try {
     const 응답 = await chrome.runtime.sendMessage({
       종류: "동시질문",
       질문,
-      프로필ID: 프로필상자.value,
-      사이트사용: 현재설정.사이트사용,
+      프로필ID: 프로필 ? 프로필.id : "표준",
+      // 명령바에서 대상 선택을 없앴으므로 항상 세 곳 모두에 보냅니다.
+      사이트사용: { claude: true, chatgpt: true, gemini: true },
     });
     상태표시((응답 && 응답.결과들) || []);
   } catch (e) {
