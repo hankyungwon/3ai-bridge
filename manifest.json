@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "3대장 브리지",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Claude · ChatGPT · Gemini 세 곳에 질문을 한 번에 보내는 확장 프로그램",
   "permissions": ["storage", "tabs", "windows", "scripting", "system.display"],
   "host_permissions": [
