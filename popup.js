@@ -10,9 +10,9 @@ let 현재설정 = null;
 
 /** 화면을 처음 그립니다. */
 async function 초기화() {
-  // 실행 중인 버전을 표시해, 업데이트가 적용됐는지 바로 알 수 있게 합니다.
-  document.getElementById("버전").textContent =
-    "v" + chrome.runtime.getManifest().version;
+  // 창 제목에 이름과 버전을 깔끔하게 표시합니다 (뒤의 .0은 생략: 1.7.0 → v1.7)
+  const 버전 = chrome.runtime.getManifest().version.replace(/\.0$/, "");
+  document.title = `AI 3대장(제비·참새·하마) 브리지 v${버전}`;
 
   현재설정 = await 설정불러오기();
 
@@ -179,7 +179,49 @@ function 이력항목만들기(항목) {
   return 줄;
 }
 
+/** "방금 / 5분 / 3시간 / 2일" 식의 아주 짧은 상대 시각 표시 */
+function 짧은시간(시각) {
+  const 초 = Math.floor((Date.now() - 시각) / 1000);
+  if (초 < 60) return "방금";
+  if (초 < 3600) return Math.floor(초 / 60) + "분 전";
+  if (초 < 86400) return Math.floor(초 / 3600) + "시간 전";
+  return Math.floor(초 / 86400) + "일 전";
+}
+
+/** 명령바 오른쪽의 "최근 질문" 미니 이력 — 그 자체로 이력 관리가 되게 */
+async function 미니이력그리기() {
+  const 상자 = document.getElementById("미니이력");
+  const 이력 = (await 이력불러오기()).slice(0, 30);
+  상자.innerHTML = "";
+  for (const 항목 of 이력) {
+    const 줄 = document.createElement("div");
+    줄.className = "미니항목";
+    const 질문줄 = document.createElement("div");
+    질문줄.className = "미니질문";
+    질문줄.textContent = (항목.즐겨찾기 ? "★ " : "") + 항목.질문;
+    const 시간줄 = document.createElement("div");
+    시간줄.className = "미니시간";
+    시간줄.textContent = 짧은시간(항목.시각);
+    줄.appendChild(질문줄);
+    줄.appendChild(시간줄);
+    줄.addEventListener("click", () => {
+      const 질문칸 = document.getElementById("질문");
+      질문칸.value = 항목.질문;
+      질문칸.focus();
+    });
+    상자.appendChild(줄);
+  }
+  if (!이력.length) {
+    const 빈줄 = document.createElement("div");
+    빈줄.className = "안내";
+    빈줄.style.padding = "6px";
+    빈줄.textContent = "최근 질문이 여기에 쌓입니다";
+    상자.appendChild(빈줄);
+  }
+}
+
 async function 이력그리기() {
+  await 미니이력그리기();
   const 상자 = document.getElementById("이력");
   const 검색어 = document.getElementById("이력검색").value.trim().toLowerCase();
   let 이력 = await 이력불러오기();
@@ -333,8 +375,12 @@ async function 전송() {
 }
 
 document.getElementById("전송버튼").addEventListener("click", 전송);
+// Enter = 바로 전송, Shift+Enter = 줄바꿈 (채팅 앱과 같은 방식)
 document.getElementById("질문").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) 전송();
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    전송();
+  }
 });
 document.getElementById("창정리버튼").addEventListener("click", () => {
   chrome.runtime.sendMessage({ 종류: "창정리" });
@@ -384,6 +430,31 @@ async function 확장패널열기(열기) {
 
 document.getElementById("이력토글").addEventListener("click", () => {
   확장패널열기(!패널열림);
+});
+
+// 질문+세 답변 자동 보관본을 마크다운 파일로 내려받습니다.
+// (세 답변 생성이 모두 끝나면 확장이 알아서 보관해 두므로, 저장 버튼이 필요 없음)
+document.getElementById("대화내보내기").addEventListener("click", async (e) => {
+  e.preventDefault();
+  const { 대화기록 } = await chrome.storage.local.get("대화기록");
+  if (!대화기록 || !대화기록.length) {
+    return alert(
+      "아직 보관된 대화가 없습니다.\n(세 답변 생성이 모두 끝나면 자동으로 보관됩니다)"
+    );
+  }
+  let 문서 = "# AI 3대장 브리지 — 대화 보관함\n\n";
+  for (const 기록 of [...대화기록].reverse()) {
+    문서 += `\n---\n\n# 질문 (${new Date(기록.시각).toLocaleString("ko-KR")})\n\n${기록.질문}\n\n`;
+    for (const [키, 답] of Object.entries(기록.답변 || {})) {
+      문서 += `## ${사이트이름[키] || 키}\n\n${답}\n\n`;
+    }
+  }
+  const 파일 = new Blob([문서], { type: "text/markdown" });
+  const 링크 = document.createElement("a");
+  링크.href = URL.createObjectURL(파일);
+  링크.download = "3대장브리지_대화보관함.md";
+  링크.click();
+  URL.revokeObjectURL(링크.href);
 });
 
 // 이력 전체를 마크다운 파일로 내려받습니다 (확장을 지워도 남는 백업).

@@ -378,6 +378,42 @@ async function 사이트에전송(사이트키, 탭ID, 본문, 희망모델) {
   }
 }
 
+/* ─────────────── 대화 자동 보관 ───────────────
+ * 세 사이트의 답변 생성이 모두 "완료"되면, 저장 버튼 없이도
+ * 질문+세 답변을 걷어 로컬 보관함(대화기록, 최근 100건)에 넣습니다.
+ * 명령바의 "대화 내보내기"로 언제든 파일로 꺼낼 수 있습니다.
+ */
+async function 자동보관시도(답변상태) {
+  const 사이트들 = Object.keys(답변상태);
+  if (!사이트들.length) return;
+  // 전부 "완료"여야 보관합니다. ("모름"인 사이트가 있으면 자동 보관 불가)
+  if (!사이트들.every((키) => 답변상태[키].상태 === "완료")) return;
+
+  const 세션 = await chrome.storage.session.get(["마지막질문", "자동보관됨"]);
+  if (!세션.마지막질문 || 세션.자동보관됨) return;
+  await chrome.storage.session.set({ 자동보관됨: true });
+
+  // 마지막 글자가 화면에 다 그려지도록 잠깐 기다린 뒤 걷습니다.
+  await 잠깐(1500);
+  const 답변 = {};
+  for (const 사이트키 of 사이트들) {
+    try {
+      const 탭 = await 기존탭찾기(사이트키);
+      if (!탭) continue;
+      const r = await 탭에보내기(탭.id, { 종류: "답변수집", 사이트: 사이트키 });
+      if (r && r.성공) 답변[사이트키] = r.본문;
+    } catch (e) {
+      /* 한 곳 실패해도 나머지는 보관 */
+    }
+  }
+  if (!Object.keys(답변).length) return;
+
+  const { 대화기록 } = await chrome.storage.local.get("대화기록");
+  const 기록 = 대화기록 || [];
+  기록.unshift({ 질문: 세션.마지막질문, 시각: Date.now(), 답변 });
+  await chrome.storage.local.set({ 대화기록: 기록.slice(0, 100) });
+}
+
 /** 프로필과 사이트에 맞춰 최종 전송 문구를 만듭니다. */
 function 본문만들기(프로필, 사이트키, 질문) {
   if (!프로필) return 질문;
@@ -414,6 +450,8 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
       지금[메시지.사이트] = { 상태: 메시지.상태, 시각: Date.now() };
       await chrome.storage.session.set({ 답변상태: 지금 });
       응답({ 성공: true });
+      // 세 곳 모두 완료되면 답변을 자동으로 걷어 보관합니다.
+      자동보관시도(지금);
     })();
     return true;
   }
@@ -483,10 +521,14 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
 
       const 대상 = 설정.창순서.filter((키) => 메시지.사이트사용[키]);
 
-      // 답변 진행 상태를 초기화합니다 (보낼 사이트는 "대기"로).
+      // 답변 진행 상태를 초기화하고, 자동 보관을 위해 질문을 기억해 둡니다.
       const 초기상태 = {};
       for (const 키 of 대상) 초기상태[키] = { 상태: "대기", 시각: Date.now() };
-      await chrome.storage.session.set({ 답변상태: 초기상태 });
+      await chrome.storage.session.set({
+        답변상태: 초기상태,
+        마지막질문: 메시지.질문,
+        자동보관됨: false,
+      });
 
       // 대상 사이트가 모두 이미 열려 있으면 창을 움직이지 않습니다.
       // (후속 질문 때마다 창이 재배치되는 것을 막고, 팝업도 닫히지 않음)
