@@ -8,7 +8,8 @@ body {
   padding: 12px;
 }
 body.popup {
-  width: 360px;
+  /* 독립 명령창에서는 창 크기에 맞춰 늘어납니다 */
+  min-width: 340px;
 }
 body.설정 {
   max-width: 780px;
