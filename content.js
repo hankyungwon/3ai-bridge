@@ -1,0 +1,382 @@
+/**
+ * content.js — 각 사이트 페이지 안에서 실제로 "타이핑하고 전송"하는 부분
+ * 선택자는 이 파일에 적지 않고 selectors.js 에서 가져다 씁니다.
+ */
+
+(() => {
+  // 같은 탭에 두 번 주입되어도 문제없게 표시를 남깁니다.
+  if (globalThis.__3대장브리지_적재됨) return;
+  globalThis.__3대장브리지_적재됨 = true;
+
+  const 잠깐 = (밀리초) => new Promise((r) => setTimeout(r, 밀리초));
+
+  /** 후보 선택자를 위에서부터 시도해 처음 찾은 요소를 반환합니다. */
+  function 요소찾기(후보들) {
+    for (const 선택자 of 후보들) {
+      const 요소 = document.querySelector(선택자);
+      if (요소 && 요소.offsetParent !== null) return 요소;
+    }
+    // 화면에 안 보이는 요소라도 있으면 그거라도 씁니다.
+    for (const 선택자 of 후보들) {
+      const 요소 = document.querySelector(선택자);
+      if (요소) return 요소;
+    }
+    return null;
+  }
+
+  /** 요소가 나타날 때까지 최대 timeout 밀리초 동안 기다립니다. */
+  async function 요소대기(후보들, 제한 = 12000) {
+    const 끝 = Date.now() + 제한;
+    while (Date.now() < 끝) {
+      const 요소 = 요소찾기(후보들);
+      if (요소) return 요소;
+      await 잠깐(250);
+    }
+    return null;
+  }
+
+  /**
+   * 입력란에 글자를 넣습니다.
+   * 사이트들이 React/Angular 를 쓰기 때문에 값만 바꾸면 인식하지 못합니다.
+   * 그래서 실제 타이핑과 같은 방식(execCommand insertText)을 사용합니다.
+   */
+  async function 글자넣기(입력란, 본문) {
+    입력란.focus();
+    입력란.click();
+    await 잠깐(50);
+
+    if (입력란.tagName === "TEXTAREA" || 입력란.tagName === "INPUT") {
+      // 네이티브 setter 를 써야 React 가 변경을 감지합니다.
+      const setter = Object.getOwnPropertyDescriptor(
+        입력란.tagName === "TEXTAREA"
+          ? window.HTMLTextAreaElement.prototype
+          : window.HTMLInputElement.prototype,
+        "value"
+      ).set;
+      setter.call(입력란, 본문);
+      입력란.dispatchEvent(new Event("input", { bubbles: true }));
+      입력란.dispatchEvent(new Event("change", { bubbles: true }));
+    } else {
+      // contenteditable (Claude, ChatGPT, Gemini 대부분)
+      const 기존선택 = window.getSelection();
+      const 범위 = document.createRange();
+      범위.selectNodeContents(입력란);
+      기존선택.removeAllRanges();
+      기존선택.addRange(범위);
+      // 기존 내용을 지우고 새 내용을 "입력"합니다.
+      document.execCommand("delete", false, null);
+      const 성공 = document.execCommand("insertText", false, 본문);
+      if (!성공) {
+        // execCommand 가 막힌 경우의 대비책
+        입력란.textContent = 본문;
+      }
+      입력란.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    }
+    await 잠깐(150);
+    // 실제로 글자가 들어갔는지 확인
+    const 현재 = (입력란.value ?? 입력란.innerText ?? "").trim();
+    return 현재.length > 0;
+  }
+
+  /** 입력란(어떤 종류든)에 현재 들어 있는 글자를 읽습니다. */
+  function 입력란글자(요소) {
+    if (!요소) return "";
+    return (요소.value ?? 요소.innerText ?? "").trim();
+  }
+
+  /**
+   * 전송 버튼을 누릅니다. 못 찾으면 Enter 키로 대신합니다.
+   * 누른 뒤 입력란이 실제로 비워졌는지 확인해서, "눌렀지만 전송은 안 된" 경우를
+   * 성공으로 잘못 보고하지 않게 합니다. (세 사이트 모두 전송되면 입력란이 비워짐)
+   */
+  async function 전송하기(설정, 입력란) {
+    let 버튼눌림 = false;
+
+    // 버튼이 활성화될 때까지 잠깐 기다렸다가 누릅니다.
+    for (let i = 0; i < 12; i++) {
+      const 버튼 = 요소찾기(설정.전송버튼);
+      if (버튼 && !버튼.disabled && 버튼.getAttribute("aria-disabled") !== "true") {
+        버튼.click();
+        버튼눌림 = true;
+        break;
+      }
+      await 잠깐(250);
+    }
+
+    if (!버튼눌림) {
+      // 대비책: Enter 키 입력 (세 사이트 모두 Enter로 전송 가능)
+      입력란.focus();
+      for (const 종류 of ["keydown", "keypress", "keyup"]) {
+        입력란.dispatchEvent(
+          new KeyboardEvent(종류, {
+            key: "Enter",
+            code: "Enter",
+            keyCode: 13,
+            which: 13,
+            bubbles: true,
+            cancelable: true,
+          })
+        );
+      }
+    }
+
+    // 전송 확인: 최대 4초 동안 입력란이 비워지길 기다립니다.
+    // (전송/모델 변경으로 입력란이 새로 그려질 수 있어 매번 다시 찾습니다)
+    for (let i = 0; i < 16; i++) {
+      const 지금입력란 = 요소찾기(설정.입력란) || 입력란;
+      if (!입력란글자(지금입력란)) return { 성공: true };
+      await 잠깐(250);
+    }
+
+    // 입력란에 글자가 그대로 남아 있으면 전송이 안 된 것으로 봅니다.
+    return {
+      성공: false,
+      사유: 버튼눌림
+        ? "전송 버튼을 눌렀지만 전송이 확인되지 않음"
+        : "전송 버튼을 찾지 못함 (selectors.js 갱신 필요)",
+    };
+  }
+
+  /* ───────────────── 모델 자동 선택 (베스트 에포트) ───────────────── */
+
+  /** 비교하기 쉽게 문자열을 다듬습니다: 소문자 + 공백/하이픈/점 제거. */
+  function 정규화(글자) {
+    return (글자 || "")
+      .toLowerCase()
+      .replace(/[\s\-_.·]/g, "")
+      .trim();
+  }
+
+  /**
+   * 희망 모델명을 실제로 찾아볼 "후보 문구 목록"으로 넓힙니다.
+   * 예) Claude + "Fable" → ["fable", "fable5"]
+   * 별칭표(selectors.js의 모델별칭)를 이용해 표기 차이를 흡수합니다.
+   */
+  function 후보문구만들기(사이트키, 희망모델) {
+    const 기본 = 정규화(희망모델);
+    const 후보 = [기본];
+    const 표 = (globalThis.모델별칭 || {})[사이트키] || {};
+    for (const [열쇠, 값들] of Object.entries(표)) {
+      const 열쇠정규 = 정규화(열쇠);
+      // 설정값이 별칭표의 열쇠와 같거나, 열쇠가 설정값에 포함되면 그 별칭들을 추가
+      if (열쇠정규 === 기본 || 기본.includes(열쇠정규) || 열쇠정규.includes(기본)) {
+        for (const v of 값들) 후보.push(정규화(v));
+      }
+    }
+    return [...new Set(후보.filter(Boolean))];
+  }
+
+  /** 실제 사람이 누르는 것과 최대한 비슷하게 클릭합니다. */
+  function 진짜클릭(요소) {
+    const 옵션 = { bubbles: true, cancelable: true, view: window };
+    요소.scrollIntoView?.({ block: "center" });
+    for (const 종류 of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
+      const 이벤트 =
+        종류.startsWith("pointer")
+          ? new PointerEvent(종류, 옵션)
+          : new MouseEvent(종류, 옵션);
+      요소.dispatchEvent(이벤트);
+    }
+  }
+
+  /** 마우스를 올린 것처럼 알려 하위 메뉴가 펼쳐지게 합니다. */
+  function 마우스올리기(요소) {
+    const 옵션 = { bubbles: true, cancelable: true, view: window };
+    for (const 종류 of ["pointerover", "mouseover", "pointerenter", "mouseenter", "mousemove"]) {
+      요소.dispatchEvent(
+        종류.startsWith("pointer")
+          ? new PointerEvent(종류, 옵션)
+          : new MouseEvent(종류, 옵션)
+      );
+    }
+  }
+
+  /** 현재 화면에 떠 있는 메뉴 항목들을 모읍니다(중복 제거). */
+  function 메뉴항목모으기(설정) {
+    const 모음 = new Set();
+    for (const 선택자 of 설정.모델항목) {
+      for (const el of document.querySelectorAll(선택자)) {
+        if (el.offsetParent !== null || el.getClientRects().length) 모음.add(el);
+      }
+    }
+    return [...모음];
+  }
+
+  /** 메뉴 항목이 나타날 때까지 기다립니다. */
+  async function 메뉴대기(설정, 제한 = 3000) {
+    const 끝 = Date.now() + 제한;
+    while (Date.now() < 끝) {
+      const 항목들 = 메뉴항목모으기(설정);
+      if (항목들.length) return 항목들;
+      await 잠깐(150);
+    }
+    return [];
+  }
+
+  /**
+   * 항목 목록에서 가장 잘 맞는 것을 고릅니다.
+   * 점수: 완전일치 > 시작일치 > 포함. 비활성 항목은 제외합니다.
+   */
+  function 가장잘맞는항목(항목들, 후보문구들) {
+    let 최고 = null;
+    let 최고점 = 0;
+    for (const el of 항목들) {
+      if (el.getAttribute("aria-disabled") === "true" || el.disabled) continue;
+      const 글 = 정규화(el.innerText || el.textContent);
+      if (!글) continue;
+      for (const 문구 of 후보문구들) {
+        let 점수 = 0;
+        if (글 === 문구) 점수 = 100;
+        else if (글.startsWith(문구)) 점수 = 80;
+        else if (글.includes(문구)) 점수 = 60;
+        // 짧은 글일수록 정확한 항목일 확률이 높아 약간 가산합니다.
+        if (점수) 점수 += Math.max(0, 20 - 글.length) / 10;
+        if (점수 > 최고점) {
+          최고점 = 점수;
+          최고 = el;
+        }
+      }
+    }
+    return 최고;
+  }
+
+  /** 지금 선택돼 있는 모델 이름(버튼에 적힌 글자)을 읽습니다. */
+  function 현재모델읽기(설정) {
+    const 라벨 = 요소찾기(설정.모델라벨 || 설정.모델버튼 || []);
+    return 라벨 ? 정규화(라벨.innerText || 라벨.textContent) : "";
+  }
+
+  /** 열려 있는 메뉴를 닫습니다. */
+  async function 메뉴닫기() {
+    document.body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })
+    );
+    await 잠깐(200);
+  }
+
+  /**
+   * 모델 자동 선택 (베스트 에포트).
+   * 실패해도 절대 전송을 막지 않고, 실패했다는 사실만 알려줍니다.
+   *
+   * 성공률을 높이기 위해 다음을 합니다:
+   *  1) 이미 원하는 모델이면 아무것도 하지 않고 성공 처리
+   *  2) 별칭표로 표기 차이를 흡수 (예: "최상위" → pro/thinking …)
+   *  3) 사람처럼 pointer/mouse 이벤트로 드롭다운을 엶
+   *  4) 목록에 없으면 "더 보기 / 레거시" 하위 메뉴를 펼쳐 다시 찾음
+   *  5) 고른 뒤 버튼 글자를 다시 읽어 실제로 바뀌었는지 확인
+   *  6) 실패하면 한 번 더 시도하고, 그래도 안 되면 메뉴를 닫아 원상복구
+   */
+  async function 모델선택시도(사이트키, 설정, 희망모델) {
+    if (!희망모델 || !희망모델.trim()) return { 시도: false };
+
+    const 후보문구들 = 후보문구만들기(사이트키, 희망모델);
+
+    // 1) 이미 원하는 모델이면 건드리지 않습니다 (가장 확실한 성공).
+    const 처음모델 = 현재모델읽기(설정);
+    if (처음모델 && 후보문구들.some((문구) => 처음모델.includes(문구))) {
+      return { 시도: true, 성공: true, 사유: "이미 선택됨" };
+    }
+
+    for (let 회차 = 0; 회차 < 2; 회차++) {
+      try {
+        const 버튼 = 요소찾기(설정.모델버튼 || []);
+        if (!버튼) return { 시도: true, 성공: false, 사유: "모델 버튼 없음" };
+
+        진짜클릭(버튼);
+        let 항목들 = await 메뉴대기(설정);
+        if (!항목들.length) {
+          await 메뉴닫기();
+          continue;
+        }
+
+        let 목표 = 가장잘맞는항목(항목들, 후보문구들);
+
+        // 4) 목록에 없으면 "더 보기 / 레거시" 계열 항목을 펼쳐 봅니다.
+        if (!목표) {
+          const 더보기 = 항목들.find((el) => {
+            const 글 = (el.innerText || "").toLowerCase();
+            return (설정.더보기문구 || []).some((문구) => 글.includes(문구.toLowerCase()));
+          });
+          if (더보기) {
+            마우스올리기(더보기);
+            await 잠깐(300);
+            진짜클릭(더보기);
+            await 잠깐(500);
+            항목들 = 메뉴항목모으기(설정);
+            목표 = 가장잘맞는항목(항목들, 후보문구들);
+          }
+        }
+
+        if (!목표) {
+          await 메뉴닫기();
+          return { 시도: true, 성공: false, 사유: "목록에 해당 모델 없음" };
+        }
+
+        진짜클릭(목표);
+        await 잠깐(600);
+
+        // 5) 정말 바뀌었는지 버튼 글자로 확인합니다.
+        for (let i = 0; i < 8; i++) {
+          const 지금 = 현재모델읽기(설정);
+          if (지금 && 후보문구들.some((문구) => 지금.includes(문구))) {
+            return { 시도: true, 성공: true };
+          }
+          await 잠깐(250);
+        }
+        // 확인용 라벨이 아예 없는 사이트라면 클릭한 것으로 성공 처리합니다.
+        if (!현재모델읽기(설정)) return { 시도: true, 성공: true, 사유: "확인 불가(클릭됨)" };
+
+        await 메뉴닫기(); // 6) 다음 회차를 위해 정리
+      } catch (e) {
+        await 메뉴닫기();
+      }
+    }
+
+    return { 시도: true, 성공: false, 사유: "선택 확인 실패" };
+  }
+
+  chrome.runtime.onMessage.addListener((메시지, _발신, 응답) => {
+    if (메시지.종류 !== "질문전송") return;
+
+    (async () => {
+      const 설정 = BRIDGE_SELECTORS[메시지.사이트];
+      if (!설정) {
+        응답({ 성공: false, 사유: "알 수 없는 사이트" });
+        return;
+      }
+
+      // 모델 선택은 반드시 질문을 넣기 "전"에 합니다.
+      // (모델을 바꾸면 입력란이 새로 그려지는 사이트가 있기 때문)
+      const 모델결과 = await 모델선택시도(메시지.사이트, 설정, 메시지.희망모델);
+
+      const 입력란 = await 요소대기(설정.입력란);
+      if (!입력란) {
+        응답({
+          성공: false,
+          사유: "입력란을 찾지 못함 (selectors.js 갱신 필요)",
+          모델: 모델결과,
+        });
+        return;
+      }
+
+      const 넣기성공 = await 글자넣기(입력란, 메시지.본문);
+      if (!넣기성공) {
+        응답({
+          성공: false,
+          사유: "입력란에 글자를 넣지 못함 (selectors.js 갱신 필요)",
+          모델: 모델결과,
+        });
+        return;
+      }
+
+      const 전송결과 = await 전송하기(설정, 입력란);
+      if (!전송결과.성공) {
+        응답({ 성공: false, 사유: 전송결과.사유, 모델: 모델결과 });
+        return;
+      }
+      응답({ 성공: true, 모델: 모델결과 });
+    })();
+
+    return true; // 비동기 응답 사용
+  });
+})();

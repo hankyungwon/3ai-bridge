@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>3대장 브리지 설정</title>
+  </head>
+  <body class="설정">
+    <h1>3대장 브리지 설정</h1>
+
+    <h2>창 순서 (왼쪽 → 오른쪽)</h2>
+    <div class="줄">
+      <select id="순서0"></select>
+      <select id="순서1"></select>
+      <select id="순서2"></select>
+    </div>
+
+    <h2>프로필</h2>
+    <p class="설명">
+      접두어는 질문 앞에 자동으로 붙는 지시문입니다. 사이트별 접두어를 채우면
+      그 사이트에서는 공통 접두어 대신 그 값이 사용됩니다. 모델명은
+      "베스트 에포트"로 시도하며, 실패해도 전송은 그대로 진행됩니다.
+    </p>
+    <div id="프로필목록"></div>
+    <button id="프로필추가" class="보조">＋ 프로필 추가</button>
+
+    <div class="줄 저장줄">
+      <button id="저장" class="주요">저장</button>
+      <button id="초기화" class="보조">기본값으로 되돌리기</button>
+      <span id="저장안내"></span>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

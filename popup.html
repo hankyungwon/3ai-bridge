@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>3대장 브리지</title>
+  </head>
+  <body class="popup">
+    <h1>3대장 브리지</h1>
+
+    <div class="줄">
+      <button id="창정리버튼" class="보조">🪟 3개 창 열기·정렬 (Alt+3)</button>
+    </div>
+
+    <label class="라벨" for="프로필">프로필</label>
+    <select id="프로필"></select>
+
+    <div class="체크줄">
+      <label><input type="checkbox" id="사용_claude" checked /> Claude</label>
+      <label><input type="checkbox" id="사용_chatgpt" checked /> ChatGPT</label>
+      <label><input type="checkbox" id="사용_gemini" checked /> Gemini</label>
+    </div>
+
+    <label class="라벨" for="질문">질문 (Ctrl+Enter로 전송)</label>
+    <textarea id="질문" rows="6" placeholder="여기에 질문을 한 번만 입력하세요."></textarea>
+
+    <button id="전송버튼" class="주요">🚀 3곳에 동시 전송</button>
+
+    <div id="상태" class="상태"></div>
+
+    <div class="줄">
+      <a href="#" id="설정열기">⚙ 설정 (프로필·접두어 편집)</a>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
