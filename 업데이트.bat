@@ -1,11 +1,51 @@
 @echo off
 rem ============================================================
-rem 업데이트.bat — 윈도우용 원클릭 업데이트
-rem 더블클릭하면 GitHub의 최신 버전을 내려받아 이 폴더에 덮어씁니다.
-rem 끝나면 크롬 chrome://extensions 에서 새로고침(둥근 화살표)만 누르세요.
+rem 3AI Bridge one-click updater (Windows)
+rem Downloads the latest version from GitHub into this folder.
+rem After it finishes: open chrome://extensions and click reload.
+rem NOTE: This file is intentionally English-only. Korean text in
+rem       .bat files breaks on Korean Windows (encoding mismatch).
 rem ============================================================
-chcp 65001 >nul
-echo 3대장 브리지를 최신 버전으로 업데이트하는 중...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $dir=Split-Path -Parent '%~f0'; $tmp=Join-Path $env:TEMP '3ai-bridge-update'; if(Test-Path $tmp){Remove-Item $tmp -Recurse -Force}; New-Item -ItemType Directory -Path $tmp | Out-Null; $zip=Join-Path $tmp 'main.zip'; Invoke-WebRequest -Uri 'https://github.com/hankyungwon/3ai-bridge/archive/refs/heads/main.zip' -OutFile $zip; Expand-Archive -Path $zip -DestinationPath $tmp -Force; Copy-Item -Path (Join-Path $tmp '3ai-bridge-main\*') -Destination $dir -Recurse -Force; Remove-Item $tmp -Recurse -Force; Write-Host ''; Write-Host '업데이트 완료!'; Write-Host '이제 크롬 주소창에 chrome://extensions 를 입력하고'; Write-Host '3대장 브리지 카드의 새로고침(둥근 화살표) 버튼을 누르세요.'"
-if errorlevel 1 echo 업데이트에 실패했습니다. 인터넷 연결을 확인한 뒤 다시 실행해 보세요.
+setlocal
+cd /d "%~dp0"
+
+echo.
+echo [3AI Bridge] Downloading the latest version...
+echo.
+
+set "TMPD=%TEMP%\3ai-bridge-upd"
+rmdir /s /q "%TMPD%" 2>nul
+mkdir "%TMPD%"
+
+curl.exe -L -sS -o "%TMPD%\main.zip" https://github.com/hankyungwon/3ai-bridge/archive/refs/heads/main.zip
+if errorlevel 1 goto fail
+
+tar.exe -xf "%TMPD%\main.zip" -C "%TMPD%"
+if errorlevel 1 goto fail
+
+rem Copy everything except .bat files (a running .bat must not
+rem overwrite itself). robocopy exit codes 0-7 mean success.
+robocopy "%TMPD%\3ai-bridge-main" "%CD%" /e /xf *.bat >nul
+if errorlevel 8 goto fail
+
+rmdir /s /q "%TMPD%" 2>nul
+
+echo ============================================
+echo  OK! Update complete. (files are in place)
+echo.
+echo  Next step:
+echo   1. Open Chrome and go to  chrome://extensions
+echo   2. Click the reload (circular arrow) button
+echo      on the "3AI Bridge" card.
+echo ============================================
 pause
+exit /b 0
+
+:fail
+echo ============================================
+echo  UPDATE FAILED.
+echo  - Check your internet connection.
+echo  - Take a photo of this window and send it to Claude.
+echo ============================================
+pause
+exit /b 1
