@@ -144,9 +144,65 @@ async function 창정리() {
   return 탭지도;
 }
 
-// 단축키(Alt+3) 처리
-chrome.commands.onCommand.addListener((명령) => {
-  if (명령 === "open-three") 창정리();
+/* ─────────────────────── 떠 있는 명령창 (드래그 가능) ─────────────────────── */
+
+/**
+ * 질문을 입력하는 "명령창"을 독립된 작은 창으로 엽니다.
+ * 확장 기본 팝업은 다른 곳을 클릭하면 자동으로 닫히지만,
+ * 이 창은 계속 떠 있고 제목줄을 잡아 어디로든 끌고 다닐 수 있습니다.
+ * 이미 열려 있으면 새로 만들지 않고 앞으로 가져옵니다.
+ */
+async function 명령창열기() {
+  // 서비스 워커가 재시작돼도 기억하도록 세션 저장소에 창 ID를 보관합니다.
+  const { 명령창ID } = await chrome.storage.session.get("명령창ID");
+  if (명령창ID) {
+    try {
+      await chrome.windows.update(명령창ID, { focused: true });
+      return 명령창ID;
+    } catch (e) {
+      /* 창이 이미 닫혔으면 아래에서 새로 만듭니다 */
+    }
+  }
+
+  const 영역 = await 화면영역구하기();
+  const 창폭 = 420;
+  const 창높이 = 560;
+  const 새창 = await chrome.windows.create({
+    url: "popup.html",
+    type: "popup", // 주소창 없는 작은 창
+    width: 창폭,
+    height: 창높이,
+    // 기본 위치: 화면 오른쪽 아래 (이후엔 사용자가 끌어다 놓은 대로)
+    left: 영역.left + 영역.width - 창폭 - 24,
+    top: 영역.top + 영역.height - 창높이 - 24,
+    focused: true,
+  });
+  await chrome.storage.session.set({ 명령창ID: 새창.id });
+  return 새창.id;
+}
+
+/** 명령창이 3분할 창들 뒤에 가려지지 않게 다시 앞으로 가져옵니다. */
+async function 명령창앞으로() {
+  const { 명령창ID } = await chrome.storage.session.get("명령창ID");
+  if (!명령창ID) return;
+  try {
+    await chrome.windows.update(명령창ID, { focused: true });
+  } catch (e) {
+    /* 닫혀 있으면 무시 */
+  }
+}
+
+// 확장 아이콘 클릭 → 명령창 열기
+chrome.action.onClicked.addListener(() => {
+  명령창열기();
+});
+
+// 단축키(Alt+3) → 3개 창 배치 후 명령창을 맨 앞에 띄우기
+chrome.commands.onCommand.addListener(async (명령) => {
+  if (명령 === "open-three") {
+    await 창정리();
+    await 명령창열기();
+  }
 });
 
 /* ─────────────────────────── 질문 주입·전송 ─────────────────────────── */
@@ -203,7 +259,9 @@ function 본문만들기(프로필, 사이트키, 질문) {
 
 chrome.runtime.onMessage.addListener((메시지, _발신, 응답) => {
   if (메시지.종류 === "창정리") {
-    창정리().then(() => 응답({ 성공: true }));
+    창정리()
+      .then(() => 명령창앞으로())
+      .then(() => 응답({ 성공: true }));
     return true; // 비동기 응답을 쓰겠다는 표시
   }
 
@@ -243,10 +301,12 @@ chrome.runtime.onMessage.addListener((메시지, _발신, 응답) => {
         )
       );
 
-      // 팝업이 (창 생성 등으로) 닫혔어도 다시 열면 결과를 볼 수 있게 저장해 둡니다.
+      // 명령창이 닫혔어도 다시 열면 결과를 볼 수 있게 저장해 둡니다.
       await chrome.storage.local.set({
         마지막결과: { 시각: Date.now(), 결과들 },
       });
+      // 새 창들이 열리면서 명령창이 뒤로 밀렸을 수 있으니 다시 앞으로 가져옵니다.
+      if (!전부열림) await 명령창앞으로();
       응답({ 결과들 });
     })();
     return true;

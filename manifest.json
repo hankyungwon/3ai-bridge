@@ -14,8 +14,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_popup": "popup.html",
-    "default_title": "3대장 브리지"
+    "default_title": "3대장 브리지 — 명령창 열기"
   },
   "options_page": "options.html",
   "commands": {
