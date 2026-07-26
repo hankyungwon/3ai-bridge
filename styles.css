@@ -7,9 +7,90 @@ body {
   margin: 0;
   padding: 12px;
 }
-body.popup {
-  /* 독립 명령창에서는 창 크기에 맞춰 늘어납니다 */
-  min-width: 340px;
+/* ───────── 하단 가로 명령바 레이아웃 ───────── */
+body.바 {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+.바줄 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.바줄.얇게 {
+  font-size: 12px;
+  color: #555;
+  min-height: 18px;
+}
+.브랜드 {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.좁게 {
+  width: 84px;
+  flex: none;
+}
+body.바 textarea#질문 {
+  flex: 1;
+  resize: none;
+  min-height: 44px;
+}
+body.바 button.주요 {
+  width: auto;
+  margin: 0;
+  flex: none;
+  padding: 10px 16px;
+  white-space: nowrap;
+}
+body.바 button.보조 {
+  flex: none;
+  padding: 8px 10px;
+  font-size: 15px;
+}
+.구분선 {
+  width: 1px;
+  align-self: stretch;
+  background: #ddd;
+}
+.전환묶음 {
+  display: flex;
+  gap: 4px;
+}
+.전환묶음 button {
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+.보조설정 {
+  font-size: 16px;
+  text-decoration: none;
+}
+body.바 .체크줄 {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  flex: none;
+}
+body.바 .상태 {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body.바 .상태 > div {
+  display: inline;
+  margin-right: 8px;
+}
+.확장패널 {
+  border-top: 1px solid #e2e2e2;
+  padding-top: 6px;
+  overflow-y: auto;
+  flex: 1;
+}
+.숨김 {
+  display: none;
 }
 body.설정 {
   max-width: 780px;

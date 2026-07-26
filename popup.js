@@ -29,6 +29,21 @@ async function 초기화() {
       현재설정.사이트사용[키] !== false;
   }
 
+  // 창 전환 버튼: 배치 순서(왼쪽→오른쪽)대로 만들어,
+  // 가려진 창(특히 겹침 배치의 가운데 창)을 클릭 한 번에 앞으로 가져옵니다.
+  const 전환줄 = document.getElementById("전환줄");
+  전환줄.innerHTML = "";
+  현재설정.창순서.forEach((키, i) => {
+    const 버튼 = document.createElement("button");
+    버튼.className = "보조";
+    버튼.textContent = 사이트이름[키];
+    버튼.title = `${사이트이름[키]} 창을 앞으로 (Alt+${[1, 2, 4][i]})`;
+    버튼.addEventListener("click", () => {
+      chrome.runtime.sendMessage({ 종류: "창포커스", 사이트: 키 });
+    });
+    전환줄.appendChild(버튼);
+  });
+
   const 저장값 = await chrome.storage.local.get(["마지막결과"]);
   const 질문칸 = document.getElementById("질문");
   질문칸.focus();
@@ -340,7 +355,34 @@ document.getElementById("이력지우기").addEventListener("click", async (e) =
   await 이력그리기();
 });
 document.getElementById("이력검색").addEventListener("input", 이력그리기);
-document.getElementById("모으기버튼").addEventListener("click", 답변모으기);
+document.getElementById("모으기버튼").addEventListener("click", async () => {
+  await 답변모으기();
+  await 확장패널열기(true); // 모은 답변을 바로 볼 수 있게 패널을 펼칩니다
+});
+
+/* ── 접이식 패널: 명령바 창을 위로 늘려 이력·모은 답변을 보여줍니다 ── */
+const 패널확장높이 = 300;
+let 패널열림 = false;
+
+async function 확장패널열기(열기) {
+  if (열기 === 패널열림) return;
+  패널열림 = 열기;
+  document.getElementById("확장패널").classList.toggle("숨김", !열기);
+  try {
+    // 명령바는 화면 맨 아래에 있으므로, 위쪽으로 키우고 줄입니다.
+    const 창 = await chrome.windows.getCurrent();
+    await chrome.windows.update(창.id, {
+      top: 창.top + (열기 ? -패널확장높이 : 패널확장높이),
+      height: 창.height + (열기 ? 패널확장높이 : -패널확장높이),
+    });
+  } catch (e) {
+    /* 창 크기 조절이 안 되는 환경이면 패널만 토글 */
+  }
+}
+
+document.getElementById("이력토글").addEventListener("click", () => {
+  확장패널열기(!패널열림);
+});
 
 // 이력 전체를 마크다운 파일로 내려받습니다 (확장을 지워도 남는 백업).
 document.getElementById("이력내보내기").addEventListener("click", async (e) => {
