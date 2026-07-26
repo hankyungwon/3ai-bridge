@@ -105,6 +105,8 @@ document.getElementById("프로필추가").addEventListener("click", () => {
 
 document.getElementById("저장").addEventListener("click", async () => {
   설정.창순서 = [0, 1, 2].map((i) => document.getElementById("순서" + i).value);
+  설정.배치모드 = document.getElementById("배치모드").value;
+  설정.호버포커스 = document.getElementById("호버포커스").checked;
   // 같은 사이트가 두 번 선택된 경우 빠진 사이트를 자동으로 채워 넣습니다.
   const 중복없이 = [...new Set(설정.창순서)];
   for (const 키 of 사이트목록) if (!중복없이.includes(키)) 중복없이.push(키);
@@ -121,11 +123,18 @@ document.getElementById("초기화").addEventListener("click", async () => {
   설정 = JSON.parse(JSON.stringify(기본설정));
   await 설정저장(설정);
   순서상자그리기();
+  배치옵션그리기();
   프로필그리기();
 });
+
+function 배치옵션그리기() {
+  document.getElementById("배치모드").value = 설정.배치모드 || "auto";
+  document.getElementById("호버포커스").checked = 설정.호버포커스 !== false;
+}
 
 (async () => {
   설정 = await 설정불러오기();
   순서상자그리기();
+  배치옵션그리기();
   프로필그리기();
 })();

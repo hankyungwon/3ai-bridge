@@ -51,6 +51,18 @@ const BRIDGE_SELECTORS = {
     ],
     // 목록에 원하는 모델이 안 보일 때 눌러 볼 "더 보기" 계열 항목의 문구
     더보기문구: ["more models", "다른 모델", "기타", "more"],
+    // 답변 생성 중에만 나타나는 "중지" 버튼 (답변 완료 감지용)
+    생성중표시: [
+      'button[aria-label="Stop response"]',
+      'button[aria-label="응답 중지"]',
+      'button[aria-label*="Stop"]',
+    ],
+    // AI 답변 본문 블록 (답변 모으기용) — 마지막 것이 최신 답변
+    답변블록: [
+      'div[data-testid="assistant-message"]',
+      ".font-claude-message",
+      'div[data-test-render-count] div[class*="font-claude"]',
+    ],
   },
 
   chatgpt: {
@@ -86,6 +98,15 @@ const BRIDGE_SELECTORS = {
     ],
     // ChatGPT는 상위 모델이 "레거시 모델 / 더 보기" 하위 메뉴에 숨어 있는 경우가 많습니다.
     더보기문구: ["레거시", "legacy", "더 보기", "more models", "기타 모델", "more"],
+    생성중표시: [
+      'button[data-testid="stop-button"]',
+      'button[aria-label*="중지"]',
+      'button[aria-label*="Stop"]',
+    ],
+    답변블록: [
+      '[data-message-author-role="assistant"]',
+      'div[data-testid^="conversation-turn"] .markdown',
+    ],
   },
 
   gemini: {
@@ -119,6 +140,18 @@ const BRIDGE_SELECTORS = {
       '[data-test-id="bard-mode-menu-button"]',
     ],
     더보기문구: ["더 보기", "more", "기타"],
+    생성중표시: [
+      'button[aria-label*="중지"]',
+      'button[aria-label*="Stop"]',
+      ".stop-icon",
+      'mat-icon[data-mat-icon-name="stop"]',
+    ],
+    답변블록: [
+      "message-content .markdown",
+      "message-content",
+      ".model-response-text",
+      "model-response",
+    ],
   },
 
   // ─────────────────────────────────────────────────────────────
