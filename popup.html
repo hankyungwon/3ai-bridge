@@ -3,23 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="styles.css" />
-    <title>AI 3대장(제비·참새·하마) 브리지</title>
+    <title>AI 3대장(제비·참새·하마) 한프로</title>
   </head>
   <body class="바">
-    <!-- 하단 명령바: [작성 카드] [버튼 그룹] [최근 질문 미니 이력] -->
+    <!-- 하단 명령바(지휘소): [작성 카드] [버튼 그룹] [최근 질문 미니 이력] -->
     <div class="바그리드">
-      <!-- ── 왼쪽: 작성 카드 ── -->
+      <!-- ── 왼쪽: 작성 카드 — 입력과 전송뿐, 군더더기 없음 ── -->
       <div class="작성칸">
         <textarea id="질문" placeholder="질문 입력"></textarea>
-        <div class="작성하단">
-          <select id="프로필" class="좁게" title="프로필 (표준/심층/신속)"></select>
-          <span class="체크줄">
-            <label><input type="checkbox" id="사용_gemini" checked /> Gemini</label>
-            <label><input type="checkbox" id="사용_chatgpt" checked /> ChatGPT</label>
-            <label><input type="checkbox" id="사용_claude" checked /> Claude</label>
-          </span>
-          <button id="전송버튼" class="주요" title="세 곳에 동시 전송 (Enter)">전송</button>
-        </div>
+        <button id="전송버튼" class="주요" title="세 곳에 동시 전송 (Enter)">전송</button>
       </div>
 
       <!-- ── 가운데: 버튼 그룹 ── -->
@@ -32,10 +24,10 @@
           <button id="새대화버튼" class="보조" title="세 사이트 모두 새 대화로">새 대화</button>
           <button id="모두닫기버튼" class="보조" title="세 AI 창 모두 닫기">모두 닫기</button>
           <button id="모으기버튼" class="보조" title="세 답변 모아 클립보드 복사">답변 모으기</button>
-        </div>
-        <div class="제어줄">
           <button id="이력토글" class="보조" title="이력·보관함 전체 열기/닫기">이력</button>
           <a href="#" id="설정열기" class="보조설정" title="설정 (프로필·접두어·배치)">설정</a>
+        </div>
+        <div class="제어줄 상태묶음">
           <span id="상태" class="상태"></span>
           <span id="답변진행" class="상태"></span>
         </div>

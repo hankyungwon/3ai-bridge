@@ -114,6 +114,7 @@ document.getElementById("저장").addEventListener("click", async () => {
 
   await 설정저장(설정);
   순서상자그리기();
+  선택프로필그리기();
   const 안내 = document.getElementById("저장안내");
   안내.textContent = "저장되었습니다.";
   setTimeout(() => (안내.textContent = ""), 2000);
@@ -123,9 +124,23 @@ document.getElementById("초기화").addEventListener("click", async () => {
   설정 = JSON.parse(JSON.stringify(기본설정));
   await 설정저장(설정);
   순서상자그리기();
+  선택프로필그리기();
   배치옵션그리기();
   프로필그리기();
 });
+
+function 선택프로필그리기() {
+  const 상자 = document.getElementById("선택프로필");
+  상자.innerHTML = "";
+  for (const p of 설정.프로필) {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = p.이름;
+    상자.appendChild(opt);
+  }
+  상자.value = 설정.선택프로필;
+  상자.addEventListener("change", () => (설정.선택프로필 = 상자.value));
+}
 
 function 배치옵션그리기() {
   document.getElementById("배치모드").value = 설정.배치모드 || "auto";
@@ -135,6 +150,7 @@ function 배치옵션그리기() {
 (async () => {
   설정 = await 설정불러오기();
   순서상자그리기();
+  선택프로필그리기();
   배치옵션그리기();
   프로필그리기();
 })();

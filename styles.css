@@ -35,7 +35,7 @@ body.바 {
   border-radius: 10px;
   background: #fff;
   padding: 4px;
-  max-height: 160px;
+  max-height: 120px;
 }
 .미니항목 {
   padding: 4px 7px;
@@ -63,15 +63,16 @@ body.바 {
   font-size: 10.5px;
   margin-top: 1px;
 }
-/* 왼쪽 작성 카드 */
+/* 왼쪽 작성 카드: 입력칸 + 절제된 전송 버튼 (가로 배치) */
 .작성칸 {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: flex-end;
   background: #fff;
   border: 1px solid #dcdfe4;
   border-radius: 12px;
   padding: 10px 12px;
-  gap: 8px;
+  gap: 10px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 .작성칸:focus-within {
@@ -84,7 +85,7 @@ body.바 textarea#질문 {
   border: none;
   outline: none;
   padding: 2px 2px;
-  min-height: 84px;
+  min-height: 64px;
   font-size: 14px;
   line-height: 1.5;
 }
@@ -401,4 +402,119 @@ a {
 #모으기결과 textarea {
   margin-top: 4px;
   font-size: 12px;
+}
+
+/* ═══════════════ 지휘소 다크 테마 ═══════════════
+ * 세 AI 창(밝은 화면)과 한눈에 구별되는 "지휘소" 정체성.
+ * 짙은 남색 바탕 + 파랑→보라 액센트 라인.
+ */
+body.바 {
+  background: linear-gradient(180deg, #191c26, #13151d);
+  color: #d7dae3;
+  border-top: 2px solid transparent;
+  border-image: linear-gradient(90deg, #2f6fed, #7c3aed) 1;
+}
+body.바 .작성칸 {
+  background: #1f2330;
+  border-color: #313749;
+  box-shadow: none;
+}
+body.바 .작성칸:focus-within {
+  border-color: #4d7df0;
+  box-shadow: 0 0 0 3px rgba(77, 125, 240, 0.18);
+}
+body.바 textarea#질문 {
+  background: transparent;
+  color: #e8eaf1;
+  caret-color: #7ba2f5;
+}
+body.바 textarea#질문::placeholder {
+  color: #5b6275;
+}
+/* 전송: 크게 외치지 않는 절제된 버튼 */
+body.바 button.주요 {
+  background: transparent;
+  border: 1px solid #3d5fb0;
+  color: #8fb0f5;
+  box-shadow: none;
+  font-weight: 600;
+  padding: 8px 18px;
+}
+body.바 button.주요:hover {
+  background: rgba(77, 125, 240, 0.16);
+  border-color: #4d7df0;
+  color: #b7cdf9;
+}
+body.바 button.보조,
+body.바 .전환버튼 {
+  background: #232838;
+  border-color: #333a4f;
+  color: #c3c8d6;
+}
+body.바 button.보조:hover,
+body.바 .전환버튼:hover {
+  background: #2c3349;
+  border-color: #46508a;
+}
+body.바 .전환묶음 {
+  border-color: #333a4f;
+  background: #232838;
+}
+body.바 .전환버튼 {
+  border-right-color: #313749;
+}
+body.바 .보조설정 {
+  color: #8fb0f5;
+}
+body.바 .상태묶음,
+body.바 .상태,
+body.바 .안내 {
+  color: #8a92a6;
+}
+body.바 .성공 {
+  color: #5fd08a;
+}
+body.바 .실패 {
+  color: #f2837b;
+}
+body.바 .미니이력 {
+  background: #1f2330;
+  border-color: #313749;
+}
+body.바 .미니항목 {
+  border-bottom-color: #2a2f40;
+}
+body.바 .미니항목:hover {
+  background: #2c3349;
+}
+body.바 .미니질문 {
+  color: #c3c8d6;
+}
+body.바 .미니시간 {
+  color: #626a80;
+}
+body.바 .확장패널 {
+  border-top-color: #313749;
+}
+body.바 .확장패널 input,
+body.바 #모으기결과 textarea {
+  background: #1f2330;
+  border-color: #313749;
+  color: #e8eaf1;
+}
+body.바 .이력 {
+  border-color: #313749;
+}
+body.바 .이력항목 {
+  color: #c3c8d6;
+}
+body.바 .이력항목:hover {
+  background: #2c3349;
+}
+body.바 .이력날짜 {
+  color: #8a92a6;
+}
+body.바 .이력머리 a,
+body.바 a {
+  color: #8fb0f5;
 }

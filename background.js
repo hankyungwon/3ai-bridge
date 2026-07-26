@@ -104,12 +104,14 @@ function 실효배치모드(설정, 영역) {
 // 하단 명령바가 차지할 높이(px).
 // AI 창들은 이 높이만큼 짧게 배치되어, 명령바가 화면을 가리지 않고
 // 화면 맨 아래 전용 띠 공간에 자리잡습니다.
-const 명령바높이 = 190;
+const 명령바높이 = 160;
 
-function 배치계산(영역, 순서, 모드) {
+function 배치계산(영역, 순서, 모드, 바상단) {
   const 위치들 = {};
-  // AI 창은 명령바 자리를 남겨 두고 그 위쪽만 사용합니다.
-  const 공통 = { top: 영역.top, height: Math.max(400, 영역.height - 명령바높이) };
+  // AI 창은 명령바의 "실제" 상단 높이까지만 사용합니다.
+  // (명령바를 먼저 놓고 그 실측 위치에 맞추므로 틈·겹침이 생기지 않음)
+  const 아래끝 = typeof 바상단 === "number" ? 바상단 : 영역.top + 영역.height - 명령바높이;
+  const 공통 = { top: 영역.top, height: Math.max(400, 아래끝 - 영역.top) };
 
   if (모드 === "overlap") {
     const 반 = Math.floor(영역.width / 2);
@@ -178,7 +180,20 @@ async function 창정리() {
   const 순서 = 설정.창순서;
   const 영역 = await 화면영역구하기();
   const 모드 = 실효배치모드(설정, 영역);
-  const 위치들 = 배치계산(영역, 순서, 모드);
+
+  // 1) 명령바를 먼저 화면 하단에 놓고, 실제로 놓인 위치를 읽습니다.
+  //    (운영체제·배율·작업표시줄에 따라 계산과 실제가 다를 수 있으므로 실측 기준)
+  let 바상단 = null;
+  try {
+    const 바ID = await 명령창열기(true);
+    const 바창 = await chrome.windows.get(바ID);
+    if (typeof 바창.top === "number") 바상단 = 바창.top;
+  } catch (e) {
+    /* 명령바가 없어도 AI 창 배치는 계속 */
+  }
+
+  // 2) AI 창들을 명령바 바로 위까지 꽉 차게 배치합니다.
+  const 위치들 = 배치계산(영역, 순서, 모드, 바상단);
   const 탭지도 = {};
 
   // 겹침 모드에서는 가운데(순서[1])를 마지막에 처리해 맨 앞에 오게 합니다.
@@ -323,8 +338,8 @@ chrome.action.onClicked.addListener(() => {
 //  (겹침 배치에서 가운데 창이 완전히 가려졌을 때 Alt+2 가 특히 유용)
 chrome.commands.onCommand.addListener(async (명령) => {
   if (명령 === "open-three") {
-    await 창정리();
-    await 명령창열기(true);
+    await 창정리(); // 명령바 배치 포함
+    await 명령창앞으로();
     return;
   }
   const 자리 = { "focus-left": 0, "focus-center": 1, "focus-right": 2 }[명령];
@@ -504,8 +519,8 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
   }
 
   if (메시지.종류 === "창정리") {
-    창정리()
-      .then(() => 명령창열기(true)) // 명령바도 하단 띠 위치로 되돌립니다
+    창정리() // 명령바를 하단에 스냅하고 AI 창들을 그 위에 맞춰 배치
+      .then(() => 명령창앞으로())
       .then(() => 응답({ 성공: true }));
     return true; // 비동기 응답을 쓰겠다는 표시
   }
