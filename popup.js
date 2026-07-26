@@ -84,6 +84,52 @@ function 현재프로필() {
   );
 }
 
+/* ───────────── 파일·사진 첨부 ─────────────
+ * ＋첨부 버튼, 입력칸에 붙여넣기(Ctrl+V), 끌어다 놓기 세 가지로 담을 수 있고,
+ * 전송하면 세 사이트의 입력란에 "붙여넣기한 것처럼" 함께 들어갑니다.
+ * 파일 내용은 브라우저 안에서만 오가며 외부로 전송되지 않습니다.
+ */
+let 첨부목록 = [];
+const 첨부최대 = 15 * 1024 * 1024; // 총 15MB — 메시지 전달 한계를 넘지 않게
+
+function 첨부그리기() {
+  const 줄 = document.getElementById("첨부줄");
+  줄.innerHTML = "";
+  줄.classList.toggle("숨김", !첨부목록.length);
+  첨부목록.forEach((f, i) => {
+    const 칩 = document.createElement("span");
+    칩.className = "첨부칩";
+    칩.textContent = `📎 ${f.이름}`;
+    const 엑스 = document.createElement("span");
+    엑스.className = "첨부엑스";
+    엑스.textContent = "×";
+    엑스.title = "첨부 제거";
+    엑스.addEventListener("click", () => {
+      첨부목록.splice(i, 1);
+      첨부그리기();
+    });
+    칩.appendChild(엑스);
+    줄.appendChild(칩);
+  });
+}
+
+async function 파일담기(파일들) {
+  for (const 파일 of 파일들) {
+    const 현재합 = 첨부목록.reduce((s, f) => s + f.크기, 0);
+    if (현재합 + 파일.size > 첨부최대) {
+      토스트([글줄(`첨부 용량 한도(15MB)를 넘어 "${파일.name}"은 뺐습니다.`, "실패")], 6000);
+      continue;
+    }
+    const 자료 = await new Promise((끝) => {
+      const r = new FileReader();
+      r.onload = () => 끝(r.result);
+      r.readAsDataURL(파일);
+    });
+    첨부목록.push({ 이름: 파일.name, 종류: 파일.type, 크기: 파일.size, 자료 });
+  }
+  첨부그리기();
+}
+
 /* ── 알림 토스트 ──
  * 진행·성공은 세 AI 창에서 직접 보이므로 표시하지 않습니다.
  * "실패했을 때만" 우측 하단에 잠깐 나타났다 사라집니다 (레이아웃 불변).
@@ -110,6 +156,10 @@ function 글줄(글, 클래스) {
 function 상태표시(결과들) {
   const 줄들 = [];
   for (const r of 결과들 || []) {
+    if (r.성공 && r.첨부실패) {
+      줄들.push(글줄(`⚠ ${r.이름 || 사이트이름[r.사이트]} — 첨부는 붙지 못해 글만 전송됨`, "실패"));
+      continue;
+    }
     if (!r.성공) {
       줄들.push(
         글줄(
@@ -193,7 +243,7 @@ function 이력항목만들기(항목) {
 
   줄.addEventListener("click", () => {
     const 질문칸 = document.getElementById("질문");
-    질문칸.value = 항목.질문;
+    질문칸.value = 항목.질문.replace(/^\[📎\d+\] /, ""); // 첨부 표식은 떼고 불러옴
     질문칸.focus();
   });
   return 줄;
@@ -226,7 +276,7 @@ async function 미니이력그리기() {
     줄.appendChild(시간줄);
     줄.addEventListener("click", () => {
       const 질문칸 = document.getElementById("질문");
-      질문칸.value = 항목.질문;
+      질문칸.value = 항목.질문.replace(/^\[📎\d+\] /, "");
       질문칸.focus();
     });
     상자.appendChild(줄);
@@ -336,7 +386,7 @@ async function 답변모으기() {
 async function 전송() {
   const 질문칸 = document.getElementById("질문");
   const 질문 = 질문칸.value.trim();
-  if (!질문) return;
+  if (!질문 && !첨부목록.length) return; // 글도 첨부도 없으면 보낼 게 없음
 
   const 버튼 = document.getElementById("전송버튼");
   버튼.disabled = true;
@@ -345,12 +395,21 @@ async function 전송() {
   // (실패하면 이력에서 클릭 한 번으로 다시 불러올 수 있습니다)
   const 프로필 = 현재프로필();
   질문칸.value = "";
-  await 이력에추가(질문, 프로필 ? 프로필.이름 : "표준");
+  const 보낼첨부 = 첨부목록;
+  첨부목록 = [];
+  첨부그리기();
+  if (질문) {
+    await 이력에추가(
+      보낼첨부.length ? `[📎${보낼첨부.length}] ${질문}` : 질문,
+      프로필 ? 프로필.이름 : "표준"
+    );
+  }
 
   try {
     const 응답 = await chrome.runtime.sendMessage({
       종류: "동시질문",
       질문,
+      첨부: 보낼첨부.map((f) => ({ 이름: f.이름, 종류: f.종류, 자료: f.자료 })),
       프로필ID: 프로필 ? 프로필.id : "표준",
       // 명령바에서 대상 선택을 없앴으므로 항상 세 곳 모두에 보냅니다.
       사이트사용: { claude: true, chatgpt: true, gemini: true },
@@ -366,6 +425,29 @@ async function 전송() {
 }
 
 document.getElementById("전송버튼").addEventListener("click", 전송);
+
+// ── 첨부 담기: 버튼 / 붙여넣기 / 끌어다 놓기 ──
+document.getElementById("첨부버튼").addEventListener("click", () => {
+  document.getElementById("파일입력").click();
+});
+document.getElementById("파일입력").addEventListener("change", async (e) => {
+  await 파일담기([...e.target.files]);
+  e.target.value = ""; // 같은 파일을 다시 골라도 인식되게 초기화
+});
+document.getElementById("질문").addEventListener("paste", async (e) => {
+  const 파일들 = [...(e.clipboardData?.files || [])];
+  if (파일들.length) {
+    e.preventDefault();
+    await 파일담기(파일들);
+  }
+});
+const 작성칸요소 = document.querySelector(".작성칸");
+작성칸요소.addEventListener("dragover", (e) => e.preventDefault());
+작성칸요소.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  const 파일들 = [...(e.dataTransfer?.files || [])];
+  if (파일들.length) await 파일담기(파일들);
+});
 // Enter = 바로 전송, Shift+Enter = 줄바꿈 (채팅 앱과 같은 방식)
 document.getElementById("질문").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {

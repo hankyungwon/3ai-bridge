@@ -85,15 +85,47 @@
   }
 
   /**
+   * 파일·사진 첨부를 입력란에 넣습니다.
+   * 사람이 Ctrl+V로 붙여넣은 것과 같은 "붙여넣기 이벤트"를 만들어 보냅니다.
+   * (세 사이트 모두 클립보드 파일 붙여넣기를 지원)
+   */
+  async function 첨부붙이기(입력란, 첨부들) {
+    if (!첨부들 || !첨부들.length) return { 성공: true };
+    try {
+      const dt = new DataTransfer();
+      for (const f of 첨부들) {
+        // 자료는 data: 주소(글자로 변환된 파일) — 다시 실제 파일로 복원
+        const 응답 = await fetch(f.자료);
+        const 블롭 = await 응답.blob();
+        dt.items.add(new File([블롭], f.이름, { type: f.종류 || 블롭.type }));
+      }
+      입력란.focus();
+      const 붙여넣기 = new ClipboardEvent("paste", {
+        clipboardData: dt,
+        bubbles: true,
+        cancelable: true,
+      });
+      입력란.dispatchEvent(붙여넣기);
+      // 사이트가 파일을 받아 올리기 시작할 시간을 줍니다.
+      await 잠깐(1200);
+      return { 성공: true };
+    } catch (e) {
+      return { 성공: false };
+    }
+  }
+
+  /**
    * 전송 버튼을 누릅니다. 못 찾으면 Enter 키로 대신합니다.
    * 누른 뒤 입력란이 실제로 비워졌는지 확인해서, "눌렀지만 전송은 안 된" 경우를
    * 성공으로 잘못 보고하지 않게 합니다. (세 사이트 모두 전송되면 입력란이 비워짐)
    */
-  async function 전송하기(설정, 입력란) {
+  async function 전송하기(설정, 입력란, 첨부있음) {
     let 버튼눌림 = false;
 
-    // 버튼이 활성화될 때까지 잠깐 기다렸다가 누릅니다.
-    for (let i = 0; i < 12; i++) {
+    // 버튼이 활성화될 때까지 기다렸다가 누릅니다.
+    // 첨부가 있으면 파일 업로드가 끝날 때까지 더 오래(최대 30초) 기다립니다.
+    const 시도횟수 = 첨부있음 ? 120 : 12;
+    for (let i = 0; i < 시도횟수; i++) {
       const 버튼 = 요소찾기(설정.전송버튼);
       if (버튼 && !버튼.disabled && 버튼.getAttribute("aria-disabled") !== "true") {
         버튼.click();
@@ -466,7 +498,12 @@
         return;
       }
 
-      const 넣기성공 = await 글자넣기(입력란, 메시지.본문);
+      // 첨부(파일·사진)를 먼저 붙입니다 — 실패해도 글 전송은 계속합니다.
+      const 첨부결과 = await 첨부붙이기(입력란, 메시지.첨부);
+
+      const 넣기성공 = 메시지.본문
+        ? await 글자넣기(요소찾기(설정.입력란) || 입력란, 메시지.본문)
+        : true; // 첨부만 보내는 경우 글자 넣기는 생략
       if (!넣기성공) {
         응답({
           성공: false,
@@ -476,9 +513,18 @@
         return;
       }
 
-      const 전송결과 = await 전송하기(설정, 입력란);
+      const 전송결과 = await 전송하기(
+        설정,
+        입력란,
+        !!(메시지.첨부 && 메시지.첨부.length)
+      );
       if (!전송결과.성공) {
         응답({ 성공: false, 사유: 전송결과.사유, 모델: 모델결과 });
+        return;
+      }
+      if (!첨부결과.성공) {
+        // 글은 갔지만 첨부는 못 붙은 경우 — 알려는 주되 성공으로 처리
+        응답({ 성공: true, 모델: 모델결과, 첨부실패: true });
         return;
       }
       // 전송 성공 → 백그라운드에서 답변 완료를 지켜봅니다 (응답을 막지 않음)
