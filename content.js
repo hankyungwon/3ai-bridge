@@ -25,7 +25,7 @@
   }
 
   /** 요소가 나타날 때까지 최대 timeout 밀리초 동안 기다립니다. */
-  async function 요소대기(후보들, 제한 = 8000) {
+  async function 요소대기(후보들, 제한 = 12000) {
     const 끝 = Date.now() + 제한;
     while (Date.now() < 끝) {
       const 요소 = 요소찾기(후보들);
@@ -78,32 +78,63 @@
     return 현재.length > 0;
   }
 
-  /** 전송 버튼을 누릅니다. 못 찾으면 Enter 키로 대신합니다. */
+  /** 입력란(어떤 종류든)에 현재 들어 있는 글자를 읽습니다. */
+  function 입력란글자(요소) {
+    if (!요소) return "";
+    return (요소.value ?? 요소.innerText ?? "").trim();
+  }
+
+  /**
+   * 전송 버튼을 누릅니다. 못 찾으면 Enter 키로 대신합니다.
+   * 누른 뒤 입력란이 실제로 비워졌는지 확인해서, "눌렀지만 전송은 안 된" 경우를
+   * 성공으로 잘못 보고하지 않게 합니다. (세 사이트 모두 전송되면 입력란이 비워짐)
+   */
   async function 전송하기(설정, 입력란) {
-    // 버튼이 활성화될 때까지 잠깐 기다립니다.
+    let 버튼눌림 = false;
+
+    // 버튼이 활성화될 때까지 잠깐 기다렸다가 누릅니다.
     for (let i = 0; i < 12; i++) {
       const 버튼 = 요소찾기(설정.전송버튼);
       if (버튼 && !버튼.disabled && 버튼.getAttribute("aria-disabled") !== "true") {
         버튼.click();
-        return true;
+        버튼눌림 = true;
+        break;
       }
       await 잠깐(250);
     }
-    // 대비책: Enter 키 입력
-    입력란.focus();
-    for (const 종류 of ["keydown", "keypress", "keyup"]) {
-      입력란.dispatchEvent(
-        new KeyboardEvent(종류, {
-          key: "Enter",
-          code: "Enter",
-          keyCode: 13,
-          which: 13,
-          bubbles: true,
-          cancelable: true,
-        })
-      );
+
+    if (!버튼눌림) {
+      // 대비책: Enter 키 입력 (세 사이트 모두 Enter로 전송 가능)
+      입력란.focus();
+      for (const 종류 of ["keydown", "keypress", "keyup"]) {
+        입력란.dispatchEvent(
+          new KeyboardEvent(종류, {
+            key: "Enter",
+            code: "Enter",
+            keyCode: 13,
+            which: 13,
+            bubbles: true,
+            cancelable: true,
+          })
+        );
+      }
     }
-    return true;
+
+    // 전송 확인: 최대 4초 동안 입력란이 비워지길 기다립니다.
+    // (전송/모델 변경으로 입력란이 새로 그려질 수 있어 매번 다시 찾습니다)
+    for (let i = 0; i < 16; i++) {
+      const 지금입력란 = 요소찾기(설정.입력란) || 입력란;
+      if (!입력란글자(지금입력란)) return { 성공: true };
+      await 잠깐(250);
+    }
+
+    // 입력란에 글자가 그대로 남아 있으면 전송이 안 된 것으로 봅니다.
+    return {
+      성공: false,
+      사유: 버튼눌림
+        ? "전송 버튼을 눌렀지만 전송이 확인되지 않음"
+        : "전송 버튼을 찾지 못함 (selectors.js 갱신 필요)",
+    };
   }
 
   /* ───────────────── 모델 자동 선택 (베스트 에포트) ───────────────── */
@@ -338,7 +369,11 @@
         return;
       }
 
-      await 전송하기(설정, 입력란);
+      const 전송결과 = await 전송하기(설정, 입력란);
+      if (!전송결과.성공) {
+        응답({ 성공: false, 사유: 전송결과.사유, 모델: 모델결과 });
+        return;
+      }
       응답({ 성공: true, 모델: 모델결과 });
     })();
 

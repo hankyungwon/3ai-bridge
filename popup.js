@@ -25,11 +25,21 @@ async function 초기화() {
       현재설정.사이트사용[키] !== false;
   }
 
-  // 마지막에 쓰던 질문을 복원(창을 닫아도 사라지지 않게)
-  const 임시 = await chrome.storage.local.get("임시질문");
-  if (임시.임시질문) document.getElementById("질문").value = 임시.임시질문;
+  // 마지막에 쓰던 질문을 복원(창을 닫아도 사라지지 않게).
+  // 전체 선택해 두어, 새 질문을 바로 타이핑하면 이전 내용이 지워집니다.
+  const 저장값 = await chrome.storage.local.get(["임시질문", "마지막결과"]);
+  const 질문칸 = document.getElementById("질문");
+  if (저장값.임시질문) {
+    질문칸.value = 저장값.임시질문;
+    질문칸.select();
+  }
+  질문칸.focus();
 
-  document.getElementById("질문").focus();
+  // 전송 도중 팝업이 닫혔더라도, 10분 안에 다시 열면 지난 결과를 보여줍니다.
+  const 지난 = 저장값.마지막결과;
+  if (지난 && Date.now() - 지난.시각 < 10 * 60 * 1000) {
+    상태표시(지난.결과들, "지난 전송 결과");
+  }
 }
 
 /** 선택 상태를 저장합니다. */
@@ -43,9 +53,15 @@ async function 선택저장() {
 }
 
 /** 사이트별 성공/실패를 팝업에 표시합니다. */
-function 상태표시(결과들) {
+function 상태표시(결과들, 제목) {
   const 상자 = document.getElementById("상태");
   상자.innerHTML = "";
+  if (제목) {
+    const 머리 = document.createElement("div");
+    머리.className = "안내";
+    머리.textContent = `— ${제목} —`;
+    상자.appendChild(머리);
+  }
   for (const r of 결과들) {
     const 줄 = document.createElement("div");
     줄.className = r.성공 ? "성공" : "실패";
@@ -83,15 +99,21 @@ async function 전송() {
   버튼.disabled = true;
   document.getElementById("상태").textContent = "전송 중…";
 
-  const 응답 = await chrome.runtime.sendMessage({
-    종류: "동시질문",
-    질문,
-    프로필ID: document.getElementById("프로필").value,
-    사이트사용: 현재설정.사이트사용,
-  });
-
-  버튼.disabled = false;
-  상태표시((응답 && 응답.결과들) || []);
+  try {
+    const 응답 = await chrome.runtime.sendMessage({
+      종류: "동시질문",
+      질문,
+      프로필ID: document.getElementById("프로필").value,
+      사이트사용: 현재설정.사이트사용,
+    });
+    상태표시((응답 && 응답.결과들) || []);
+  } catch (e) {
+    // 백그라운드와의 연결이 끊긴 드문 경우에도 안내는 남깁니다.
+    document.getElementById("상태").textContent =
+      "결과를 받지 못했습니다. 팝업을 다시 열면 지난 전송 결과가 표시됩니다.";
+  } finally {
+    버튼.disabled = false;
+  }
 }
 
 document.getElementById("전송버튼").addEventListener("click", 전송);
