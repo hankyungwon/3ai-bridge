@@ -101,9 +101,15 @@ function 실효배치모드(설정, 영역) {
  *     왼쪽 창은 화면 왼쪽 절반, 오른쪽 창은 화면 오른쪽 절반,
  *     가운데 창은 화면 중앙(1/4~3/4 지점)에서 양쪽을 반씩 가리며 맨 앞.
  */
+// 하단 명령바가 차지할 높이(px).
+// AI 창들은 이 높이만큼 짧게 배치되어, 명령바가 화면을 가리지 않고
+// 화면 맨 아래 전용 띠 공간에 자리잡습니다.
+const 명령바높이 = 170;
+
 function 배치계산(영역, 순서, 모드) {
   const 위치들 = {};
-  const 공통 = { top: 영역.top, height: 영역.height };
+  // AI 창은 명령바 자리를 남겨 두고 그 위쪽만 사용합니다.
+  const 공통 = { top: 영역.top, height: Math.max(400, 영역.height - 명령바높이) };
 
   if (모드 === "overlap") {
     const 반 = Math.floor(영역.width / 2);
@@ -243,38 +249,56 @@ async function 새대화시작() {
 /* ─────────────────────── 떠 있는 명령창 (드래그 가능) ─────────────────────── */
 
 /**
- * 질문을 입력하는 "명령창"을 독립된 작은 창으로 엽니다.
- * 확장 기본 팝업은 다른 곳을 클릭하면 자동으로 닫히지만,
- * 이 창은 계속 떠 있고 제목줄을 잡아 어디로든 끌고 다닐 수 있습니다.
- * 이미 열려 있으면 새로 만들지 않고 앞으로 가져옵니다.
+ * 질문을 입력하는 "명령바"를 화면 하단에 가로로 길게 엽니다.
+ * - AI 창들의 대화 입력란이 하단에 있으므로 그 바로 아래 띠 모양이 자연스럽고,
+ *   AI 창 높이를 그만큼 줄여 두므로 화면을 가리지 않습니다.
+ * - 다른 창을 클릭해도 닫히지 않으며, 제목줄을 잡아 옮길 수도 있습니다.
+ * @param {boolean} 스냅 true면 (이미 열려 있어도) 하단 띠 위치로 다시 붙입니다.
  */
-async function 명령창열기() {
+async function 명령창열기(스냅 = false) {
+  const 영역 = await 화면영역구하기();
+  const 바위치 = {
+    left: 영역.left,
+    top: 영역.top + 영역.height - 명령바높이,
+    width: 영역.width,
+    height: 명령바높이,
+  };
+
   // 서비스 워커가 재시작돼도 기억하도록 세션 저장소에 창 ID를 보관합니다.
   const { 명령창ID } = await chrome.storage.session.get("명령창ID");
   if (명령창ID) {
     try {
-      await chrome.windows.update(명령창ID, { focused: true });
+      await chrome.windows.update(
+        명령창ID,
+        스냅 ? { focused: true, state: "normal", ...바위치 } : { focused: true }
+      );
       return 명령창ID;
     } catch (e) {
       /* 창이 이미 닫혔으면 아래에서 새로 만듭니다 */
     }
   }
 
-  const 영역 = await 화면영역구하기();
-  const 창폭 = 420;
-  const 창높이 = 560;
   const 새창 = await chrome.windows.create({
     url: "popup.html",
     type: "popup", // 주소창 없는 작은 창
-    width: 창폭,
-    height: 창높이,
-    // 기본 위치: 화면 오른쪽 아래 (이후엔 사용자가 끌어다 놓은 대로)
-    left: 영역.left + 영역.width - 창폭 - 24,
-    top: 영역.top + 영역.height - 창높이 - 24,
     focused: true,
+    ...바위치,
   });
   await chrome.storage.session.set({ 명령창ID: 새창.id });
   return 새창.id;
+}
+
+/** 지정한 사이트의 창을 맨 앞으로 가져옵니다 (창 전환 버튼·단축키용). */
+async function 사이트창앞으로(사이트키) {
+  try {
+    const 탭 = await 기존탭찾기(사이트키);
+    if (!탭) return false;
+    await chrome.windows.update(탭.windowId, { focused: true });
+    await chrome.tabs.update(탭.id, { active: true });
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 /** 명령창이 3분할 창들 뒤에 가려지지 않게 다시 앞으로 가져옵니다. */
@@ -293,11 +317,20 @@ chrome.action.onClicked.addListener(() => {
   명령창열기();
 });
 
-// 단축키(Alt+3) → 3개 창 배치 후 명령창을 맨 앞에 띄우기
+// 단축키 처리
+//  Alt+3: 3개 창 배치 + 명령바를 하단에 스냅
+//  Alt+1 / Alt+2 / Alt+4: 왼쪽/가운데/오른쪽 AI 창 앞으로
+//  (겹침 배치에서 가운데 창이 완전히 가려졌을 때 Alt+2 가 특히 유용)
 chrome.commands.onCommand.addListener(async (명령) => {
   if (명령 === "open-three") {
     await 창정리();
-    await 명령창열기();
+    await 명령창열기(true);
+    return;
+  }
+  const 자리 = { "focus-left": 0, "focus-center": 1, "focus-right": 2 }[명령];
+  if (자리 !== undefined) {
+    const 설정 = await 설정불러오기();
+    await 사이트창앞으로(설정.창순서[자리]);
   }
 });
 
@@ -414,6 +447,12 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
     return true;
   }
 
+  // 명령바의 창 전환 버튼: 해당 사이트 창을 맨 앞으로
+  if (메시지.종류 === "창포커스") {
+    사이트창앞으로(메시지.사이트).then((성공) => 응답({ 성공 }));
+    return true;
+  }
+
   if (메시지.종류 === "모두닫기") {
     모두닫기().then(() => 응답({ 성공: true }));
     return true;
@@ -428,7 +467,7 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
 
   if (메시지.종류 === "창정리") {
     창정리()
-      .then(() => 명령창앞으로())
+      .then(() => 명령창열기(true)) // 명령바도 하단 띠 위치로 되돌립니다
       .then(() => 응답({ 성공: true }));
     return true; // 비동기 응답을 쓰겠다는 표시
   }

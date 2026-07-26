@@ -3,58 +3,62 @@
   <head>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="styles.css" />
-    <title>3대장 브리지</title>
+    <title>AI 3대장(제비·참새·하마) 브리지</title>
   </head>
-  <body class="popup">
-    <h1>3대장 브리지 <span id="버전" class="안내"></span></h1>
-    <p class="안내">
-      이 명령창은 계속 떠 있습니다. 위 제목줄을 잡고 끌면 원하는 위치로
-      옮길 수 있고, 다른 창을 클릭해도 닫히지 않습니다.
-    </p>
+  <body class="바">
+    <!-- 1줄: 입력과 실행 (화면 하단 가로 명령바) -->
+    <div class="바줄">
+      <span class="브랜드" title="AI 3대장(제비·참새·하마) 브리지">AI 3대장 <span id="버전" class="안내"></span></span>
 
-    <div class="줄 리모컨">
-      <button id="창정리버튼" class="보조" title="3개 창을 열고 정렬합니다 (Alt+3)">🪟 정렬</button>
-      <button id="새대화버튼" class="보조" title="세 사이트 모두 새 대화 화면으로 이동합니다">🆕 새 대화</button>
-      <button id="모두닫기버튼" class="보조" title="세 AI 창을 한 번에 닫습니다">❌ 모두 닫기</button>
+      <select id="프로필" class="좁게" title="프로필 (표준/심층/신속)"></select>
+
+      <textarea
+        id="질문"
+        rows="2"
+        placeholder="질문을 입력하고 Ctrl+Enter — 세 곳에 동시 전송됩니다"
+      ></textarea>
+
+      <button id="전송버튼" class="주요" title="3곳에 동시 전송 (Ctrl+Enter)">전송</button>
+
+      <span class="구분선"></span>
+
+      <!-- 창 전환: 가려진 창을 한 번에 앞으로 (Alt+1 / Alt+2 / Alt+4) -->
+      <span id="전환줄" class="전환묶음" title="창 전환 (Alt+1 왼쪽 · Alt+2 가운데 · Alt+4 오른쪽)"></span>
+
+      <span class="구분선"></span>
+
+      <button id="창정리버튼" class="보조" title="창 배치 정렬 (Alt+3)">정렬</button>
+      <button id="새대화버튼" class="보조" title="세 사이트 모두 새 대화로">새 대화</button>
+      <button id="모두닫기버튼" class="보조" title="세 AI 창 모두 닫기">모두 닫기</button>
+      <button id="모으기버튼" class="보조" title="세 답변 모아 클립보드 복사">답변 모으기</button>
+      <button id="이력토글" class="보조" title="보낸 질문 이력 열기/닫기">이력</button>
+      <a href="#" id="설정열기" class="보조설정" title="설정 (프로필·접두어·배치)">설정</a>
     </div>
 
-    <label class="라벨" for="프로필">프로필</label>
-    <select id="프로필"></select>
-
-    <div class="체크줄">
-      <label><input type="checkbox" id="사용_claude" checked /> Claude</label>
-      <label><input type="checkbox" id="사용_chatgpt" checked /> ChatGPT</label>
-      <label><input type="checkbox" id="사용_gemini" checked /> Gemini</label>
-    </div>
-
-    <label class="라벨" for="질문">질문 (Ctrl+Enter로 전송)</label>
-    <textarea id="질문" rows="6" placeholder="여기에 질문을 한 번만 입력하세요."></textarea>
-
-    <button id="전송버튼" class="주요">🚀 3곳에 동시 전송</button>
-
-    <div id="상태" class="상태"></div>
-    <div id="답변진행" class="상태"></div>
-
-    <div class="줄">
-      <button id="모으기버튼" class="보조 넓게">
-        📋 세 답변 모으기 (클립보드 복사)
-      </button>
-    </div>
-    <div id="모으기결과"></div>
-
-    <div class="이력머리">
-      <span class="라벨">보낸 질문 이력</span>
-      <span>
-        <a href="#" id="이력내보내기" title="이력 전체를 파일로 저장">내보내기</a>
-        ·
-        <a href="#" id="이력지우기">지우기</a>
+    <!-- 2줄: 대상 선택과 상태 -->
+    <div class="바줄 얇게">
+      <span class="체크줄">
+        <label><input type="checkbox" id="사용_claude" checked /> Claude</label>
+        <label><input type="checkbox" id="사용_chatgpt" checked /> ChatGPT</label>
+        <label><input type="checkbox" id="사용_gemini" checked /> Gemini</label>
       </span>
+      <span id="상태" class="상태"></span>
+      <span id="답변진행" class="상태"></span>
     </div>
-    <input id="이력검색" type="text" placeholder="🔍 이력 검색 (별표 ★는 즐겨찾기로 맨 위 고정)" />
-    <div id="이력" class="이력"></div>
 
-    <div class="줄">
-      <a href="#" id="설정열기">⚙ 설정 (프로필·접두어·배치 편집)</a>
+    <!-- 접이식 패널: 이력·모은 답변 (🕘 버튼으로 위로 펼쳐짐) -->
+    <div id="확장패널" class="확장패널 숨김">
+      <div class="이력머리">
+        <span class="라벨">보낸 질문 이력</span>
+        <span>
+          <a href="#" id="이력내보내기" title="이력 전체를 파일로 저장">내보내기</a>
+          ·
+          <a href="#" id="이력지우기">지우기</a>
+        </span>
+      </div>
+      <input id="이력검색" type="text" placeholder="🔍 이력 검색 (★는 즐겨찾기로 맨 위 고정)" />
+      <div id="이력" class="이력"></div>
+      <div id="모으기결과"></div>
     </div>
 
     <script src="config.js"></script>
