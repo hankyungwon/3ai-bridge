@@ -310,11 +310,29 @@ async function 사이트창앞으로(사이트키) {
     if (!탭) return false;
     await chrome.windows.update(탭.windowId, { focused: true });
     await chrome.tabs.update(탭.id, { active: true });
+    await chrome.storage.session.set({ 현재전면사이트: 사이트키 });
     return true;
   } catch (e) {
     return false;
   }
 }
+
+// 어느 AI 창이 맨 앞인지 추적합니다 (명령바의 전환 버튼 "돌출" 표시용).
+// 클릭·호버 등 어떤 방법으로 창이 앞에 오든 여기서 감지됩니다.
+chrome.windows.onFocusChanged.addListener(async (창ID) => {
+  if (창ID === chrome.windows.WINDOW_ID_NONE) return;
+  try {
+    const 창 = await chrome.windows.get(창ID, { populate: true });
+    const 활성탭 = (창.tabs || []).find((t) => t.active) || (창.tabs || [])[0];
+    if (!활성탭) return;
+    const 사이트 = 사이트판별(활성탭.url || 활성탭.pendingUrl || "");
+    if (사이트) {
+      await chrome.storage.session.set({ 현재전면사이트: 사이트 });
+    }
+  } catch (e) {
+    /* 무시 */
+  }
+});
 
 /** 명령창이 3분할 창들 뒤에 가려지지 않게 다시 앞으로 가져옵니다. */
 async function 명령창앞으로() {

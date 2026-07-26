@@ -12,7 +12,7 @@ let 현재설정 = null;
 async function 초기화() {
   // 창 제목에 이름과 버전을 깔끔하게 표시합니다 (뒤의 .0은 생략: 1.8.0 → v1.8)
   const 버전 = chrome.runtime.getManifest().version.replace(/\.0$/, "");
-  document.title = `AI 3대장(제비·참새·하마) 한프로 v${버전}`;
+  document.title = `AI 3대장(제비·참새·하마) 카페 v${버전}`;
 
   현재설정 = await 설정불러오기();
   // 프로필·대상 선택은 명령바에서 뺐습니다(⚙ 설정에서 관리).
@@ -27,15 +27,23 @@ async function 초기화() {
     버튼.className = "전환버튼";
     버튼.textContent = 사이트별명[키] || 사이트이름[키];
     버튼.title = `${사이트이름[키]} 창을 앞으로 (Alt+${[1, 2, 4][i]})`;
+    버튼.dataset.사이트 = 키;
     버튼.addEventListener("click", () => {
       chrome.runtime.sendMessage({ 종류: "창포커스", 사이트: 키 });
     });
     전환줄.appendChild(버튼);
   });
+  await 전면표시갱신();
 
   const 저장값 = await chrome.storage.local.get(["마지막결과"]);
   const 질문칸 = document.getElementById("질문");
   질문칸.focus();
+  // 명령바가 다시 앞으로 올 때마다 커서를 자동으로 입력칸 좌상단에 둡니다.
+  window.addEventListener("focus", () => 질문칸.focus());
+
+  // 창 높이가 내용보다 작으면(내용이 잘리면) 창을 위쪽으로 스스로 늘립니다.
+  // — "하단 요소가 가려지는" 문제의 근본 해결
+  setTimeout(창높이맞춤, 150);
 
   await 이력그리기();
   await 답변진행그리기();
@@ -46,6 +54,34 @@ async function 초기화() {
     상태표시(지난.결과들, "지난 전송 결과");
   }
 }
+
+/** 내용이 창보다 크면 창을 위로 늘려 전부 보이게 합니다. */
+async function 창높이맞춤() {
+  try {
+    const 부족 = document.body.scrollHeight - window.innerHeight;
+    if (부족 > 2) {
+      const 창 = await chrome.windows.getCurrent();
+      await chrome.windows.update(창.id, {
+        top: 창.top - 부족,
+        height: 창.height + 부족,
+      });
+    }
+  } catch (e) {
+    /* 크기 조절이 안 되는 환경이면 그대로 둠 */
+  }
+}
+
+/** 지금 맨 앞에 나와 있는 AI 창의 전환 버튼을 "돌출" 표시합니다. */
+async function 전면표시갱신() {
+  const { 현재전면사이트 } = await chrome.storage.session.get("현재전면사이트");
+  document.querySelectorAll(".전환버튼").forEach((b) => {
+    b.classList.toggle("눌림", b.dataset.사이트 === 현재전면사이트);
+  });
+}
+
+chrome.storage.onChanged.addListener((변경, 영역) => {
+  if (영역 === "session" && 변경.현재전면사이트) 전면표시갱신();
+});
 
 /** 현재 적용 중인 프로필(⚙ 설정에서 선택)을 찾습니다. 없으면 표준 동작. */
 function 현재프로필() {
@@ -374,9 +410,15 @@ document.getElementById("새대화버튼").addEventListener("click", () => {
 });
 document.getElementById("모두닫기버튼").addEventListener("click", () => {
   // 실수로 누르는 것을 막기 위해 한 번 확인합니다.
-  if (!confirm("세 AI 창을 모두 닫을까요? (대화 기록은 각 사이트에 남습니다)")) return;
+  if (
+    !confirm(
+      "세 AI 창을 모두 닫습니다. (각 사이트의 대화 기록은 그대로 남습니다)\n\n다시 열 때는 [정렬] 버튼이나 Alt+3 만 누르면 됩니다."
+    )
+  )
+    return;
   chrome.runtime.sendMessage({ 종류: "모두닫기" });
-  document.getElementById("상태").textContent = "세 AI 창을 닫았습니다.";
+  document.getElementById("상태").textContent =
+    "세 AI 창을 닫았습니다. [정렬] 또는 Alt+3 으로 다시 엽니다.";
 });
 document.getElementById("이력지우기").addEventListener("click", async (e) => {
   e.preventDefault();
