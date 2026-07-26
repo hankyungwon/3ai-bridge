@@ -551,3 +551,44 @@ body.바 .전환버튼.눌림:hover {
   line-height: 1.5;
   font-size: 12px;
 }
+
+/* 첨부 칩 (입력칸 위에 담긴 파일 목록) */
+.작성본문 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.작성버튼들 {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.첨부줄 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.첨부칩 {
+  background: #2c3349;
+  border: 1px solid #3d4560;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11.5px;
+  color: #c3c8d6;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.첨부엑스 {
+  margin-left: 6px;
+  cursor: pointer;
+  color: #8a92a6;
+  font-weight: 700;
+}
+.첨부엑스:hover {
+  color: #f2837b;
+}

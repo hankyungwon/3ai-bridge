@@ -10,8 +10,15 @@
     <div class="바그리드">
       <!-- ── 왼쪽: 작성 카드 — 입력과 전송뿐, 군더더기 없음 ── -->
       <div class="작성칸">
-        <textarea id="질문" placeholder="질문 입력"></textarea>
-        <button id="전송버튼" class="주요" title="세 곳에 동시 전송 (Enter)">전송</button>
+        <div class="작성본문">
+          <div id="첨부줄" class="첨부줄 숨김"></div>
+          <textarea id="질문" placeholder="질문 입력"></textarea>
+        </div>
+        <div class="작성버튼들">
+          <button id="첨부버튼" class="보조" title="파일·사진 첨부 (붙여넣기 Ctrl+V, 끌어다 놓기도 가능)">＋ 첨부</button>
+          <button id="전송버튼" class="주요" title="세 곳에 동시 전송 (Enter)">전송</button>
+        </div>
+        <input type="file" id="파일입력" multiple hidden />
       </div>
 
       <!-- ── 가운데: 버튼 그룹 ── -->
