@@ -8,6 +8,10 @@ let 현재설정 = null;
 
 /** 화면을 처음 그립니다. */
 async function 초기화() {
+  // 실행 중인 버전을 표시해, 업데이트가 적용됐는지 바로 알 수 있게 합니다.
+  document.getElementById("버전").textContent =
+    "v" + chrome.runtime.getManifest().version;
+
   현재설정 = await 설정불러오기();
 
   const 프로필상자 = document.getElementById("프로필");
