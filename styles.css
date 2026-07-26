@@ -534,3 +534,20 @@ body.바 .전환버튼.눌림 {
 body.바 .전환버튼.눌림:hover {
   background: linear-gradient(180deg, #5b88f2, #4368d6);
 }
+
+/* 실패 알림 토스트: 우측 하단에 떠서 레이아웃에 영향을 주지 않음 */
+.토스트 {
+  position: fixed;
+  right: 16px;
+  bottom: 12px;
+  max-width: 46%;
+  background: #262b3b;
+  border: 1px solid #4a3540;
+  border-left: 3px solid #f2837b;
+  border-radius: 10px;
+  padding: 8px 12px;
+  z-index: 50;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  line-height: 1.5;
+  font-size: 12px;
+}
