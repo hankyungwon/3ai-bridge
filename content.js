@@ -89,7 +89,7 @@
    * 사람이 Ctrl+V로 붙여넣은 것과 같은 "붙여넣기 이벤트"를 만들어 보냅니다.
    * (세 사이트 모두 클립보드 파일 붙여넣기를 지원)
    */
-  async function 첨부붙이기(입력란, 첨부들) {
+  async function 첨부붙이기(설정, 입력란, 첨부들) {
     if (!첨부들 || !첨부들.length) return { 성공: true };
     try {
       const dt = new DataTransfer();
@@ -99,16 +99,46 @@
         const 블롭 = await 응답.blob();
         dt.items.add(new File([블롭], f.이름, { type: f.종류 || 블롭.type }));
       }
-      입력란.focus();
-      const 붙여넣기 = new ClipboardEvent("paste", {
-        clipboardData: dt,
-        bubbles: true,
-        cancelable: true,
-      });
-      입력란.dispatchEvent(붙여넣기);
-      // 사이트가 파일을 받아 올리기 시작할 시간을 줍니다.
-      await 잠깐(1200);
-      return { 성공: true };
+
+      // 사이트마다 첨부를 받는 통로가 다릅니다(selectors.js의 첨부방식 순서대로 시도).
+      const 방식들 = 설정.첨부방식 || ["paste"];
+      for (const 방식 of 방식들) {
+        if (방식 === "input") {
+          // 숨겨진 파일 업로드 칸에 직접 파일을 넣고 change 신호를 보냅니다.
+          let 파일칸 = null;
+          for (const 선택자 of 설정.파일입력 || []) {
+            파일칸 = document.querySelector(선택자);
+            if (파일칸) break;
+          }
+          if (!파일칸) continue; // 이 방식은 불가 → 다음 방식으로
+          파일칸.files = dt.files;
+          파일칸.dispatchEvent(new Event("input", { bubbles: true }));
+          파일칸.dispatchEvent(new Event("change", { bubbles: true }));
+          await 잠깐(1200);
+          return { 성공: true, 방식 };
+        }
+        if (방식 === "drop") {
+          입력란.focus();
+          const 옵션 = { dataTransfer: dt, bubbles: true, cancelable: true };
+          입력란.dispatchEvent(new DragEvent("dragenter", 옵션));
+          입력란.dispatchEvent(new DragEvent("dragover", 옵션));
+          입력란.dispatchEvent(new DragEvent("drop", 옵션));
+          await 잠깐(1200);
+          return { 성공: true, 방식 };
+        }
+        // 기본: 붙여넣기 이벤트
+        입력란.focus();
+        입력란.dispatchEvent(
+          new ClipboardEvent("paste", {
+            clipboardData: dt,
+            bubbles: true,
+            cancelable: true,
+          })
+        );
+        await 잠깐(1200);
+        return { 성공: true, 방식 };
+      }
+      return { 성공: false };
     } catch (e) {
       return { 성공: false };
     }
@@ -499,7 +529,7 @@
       }
 
       // 첨부(파일·사진)를 먼저 붙입니다 — 실패해도 글 전송은 계속합니다.
-      const 첨부결과 = await 첨부붙이기(입력란, 메시지.첨부);
+      const 첨부결과 = await 첨부붙이기(설정, 입력란, 메시지.첨부);
 
       const 넣기성공 = 메시지.본문
         ? await 글자넣기(요소찾기(설정.입력란) || 입력란, 메시지.본문)
