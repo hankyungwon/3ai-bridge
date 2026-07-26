@@ -63,6 +63,14 @@ const BRIDGE_SELECTORS = {
       ".font-claude-message",
       'div[data-test-render-count] div[class*="font-claude"]',
     ],
+    // 첨부를 넣는 방식(순서대로 시도): input=숨겨진 파일 업로드 칸에 직접 주입,
+    // paste=붙여넣기 이벤트, drop=끌어다 놓기 이벤트
+    첨부방식: ["input", "drop", "paste"],
+    파일입력: [
+      'input[data-testid="file-upload"]',
+      'input[type="file"][multiple]',
+      'input[type="file"]',
+    ],
   },
 
   chatgpt: {
@@ -107,6 +115,8 @@ const BRIDGE_SELECTORS = {
       '[data-message-author-role="assistant"]',
       'div[data-testid^="conversation-turn"] .markdown',
     ],
+    첨부방식: ["paste", "input"],
+    파일입력: ['input[type="file"][multiple]', 'input[type="file"]'],
   },
 
   gemini: {
@@ -152,6 +162,8 @@ const BRIDGE_SELECTORS = {
       ".model-response-text",
       "model-response",
     ],
+    첨부방식: ["paste", "input", "drop"],
+    파일입력: ['input[type="file"]'],
   },
 
   // ─────────────────────────────────────────────────────────────
