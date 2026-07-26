@@ -39,7 +39,18 @@ const BRIDGE_SELECTORS = {
       'button[aria-haspopup="menu"][data-testid*="model"]',
     ],
     // 드롭다운이 열린 뒤 나타나는 모델 항목들
-    모델항목: ['[role="menuitem"]', '[role="option"]'],
+    모델항목: [
+      '[role="menu"] [role="menuitem"]',
+      '[role="menuitem"]',
+      '[role="option"]',
+    ],
+    // 현재 선택된 모델 이름이 적혀 있는 곳 (선택 성공 여부 확인용)
+    모델라벨: [
+      'button[data-testid="model-selector-dropdown"]',
+      'button[aria-haspopup="menu"][data-testid*="model"]',
+    ],
+    // 목록에 원하는 모델이 안 보일 때 눌러 볼 "더 보기" 계열 항목의 문구
+    더보기문구: ["more models", "다른 모델", "기타", "more"],
   },
 
   chatgpt: {
@@ -61,8 +72,20 @@ const BRIDGE_SELECTORS = {
     모델버튼: [
       'button[data-testid="model-switcher-dropdown-button"]',
       'button[aria-label*="모델"]',
+      'button[aria-label*="Model"]',
     ],
-    모델항목: ['[role="menuitem"]', '[role="option"]'],
+    모델항목: [
+      '[role="menu"] [role="menuitem"]',
+      '[data-testid^="model-switcher-"]',
+      '[role="menuitem"]',
+      '[role="option"]',
+    ],
+    모델라벨: [
+      'button[data-testid="model-switcher-dropdown-button"]',
+      'div[data-testid="model-switcher-label"]',
+    ],
+    // ChatGPT는 상위 모델이 "레거시 모델 / 더 보기" 하위 메뉴에 숨어 있는 경우가 많습니다.
+    더보기문구: ["레거시", "legacy", "더 보기", "more models", "기타 모델", "more"],
   },
 
   gemini: {
@@ -85,7 +108,47 @@ const BRIDGE_SELECTORS = {
       "button.gds-mode-switch-button",
       'button[data-test-id="bard-mode-menu-button"]',
     ],
-    모델항목: ['button[role="menuitemradio"]', '[role="menuitem"]', '[role="option"]'],
+    모델항목: [
+      'button[role="menuitemradio"]',
+      ".mat-mdc-menu-panel button",
+      '[role="menuitem"]',
+      '[role="option"]',
+    ],
+    모델라벨: [
+      "button.gds-mode-switch-button",
+      '[data-test-id="bard-mode-menu-button"]',
+    ],
+    더보기문구: ["더 보기", "more", "기타"],
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // 모델 이름 별칭표 (모델 자동 선택 성공률을 높이기 위한 사전)
+  // 설정에 적은 이름이 화면 표기와 조금 달라도 찾아낼 수 있게,
+  // "같은 뜻으로 볼 수 있는 표현"들을 함께 적어 둡니다.
+  // 사이트가 새 모델을 내면 여기에 한 줄 추가하면 됩니다.
+  // ─────────────────────────────────────────────────────────────
+};
+
+const 모델별칭 = {
+  claude: {
+    fable: ["fable", "fable 5"],
+    opus: ["opus", "opus 4.1", "opus 4"],
+    sonnet: ["sonnet", "sonnet 4.5", "sonnet 4"],
+    haiku: ["haiku"],
+    최상위: ["fable", "opus"],
+  },
+  chatgpt: {
+    최상위: ["pro", "thinking", "o3", "5.2 pro"],
+    thinking: ["thinking", "생각", "reasoning"],
+    pro: ["pro"],
+    auto: ["auto", "자동"],
+    instant: ["instant", "빠른"],
+  },
+  gemini: {
+    pro: ["pro"],
+    flash: ["flash", "빠른"],
+    최상위: ["pro", "ultra", "deep think"],
+    "deep research": ["deep research", "심층 리서치"],
   },
 };
 
@@ -100,4 +163,5 @@ function 사이트판별(url) {
 // 콘텐츠 스크립트(웹페이지 안)와 서비스워커(background.js) 양쪽에서
 // 같은 파일을 그대로 쓸 수 있게 전역으로 노출합니다.
 globalThis.BRIDGE_SELECTORS = BRIDGE_SELECTORS;
+globalThis.모델별칭 = 모델별칭;
 globalThis.사이트판별 = 사이트판별;

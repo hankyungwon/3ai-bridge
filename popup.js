@@ -58,7 +58,8 @@ function 상태표시(결과들) {
     if (r.모델 && r.모델.시도 && !r.모델.성공) {
       const 안내 = document.createElement("div");
       안내.className = "안내";
-      안내.textContent = `ℹ ${r.이름} 모델 자동 선택 실패 — 현재 설정 모델로 전송됨`;
+      const 사유 = r.모델.사유 ? ` (${r.모델.사유})` : "";
+      안내.textContent = `ℹ ${r.이름} 모델 자동 선택 실패${사유} — 현재 설정 모델로 전송됨`;
       상자.appendChild(안내);
     }
   }
