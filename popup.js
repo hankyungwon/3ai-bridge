@@ -35,7 +35,6 @@ async function 초기화() {
   });
   await 전면표시갱신();
 
-  const 저장값 = await chrome.storage.local.get(["마지막결과"]);
   const 질문칸 = document.getElementById("질문");
   질문칸.focus();
   // 명령바가 다시 앞으로 올 때마다 커서를 자동으로 입력칸 좌상단에 둡니다.
@@ -46,13 +45,6 @@ async function 초기화() {
   setTimeout(창높이맞춤, 150);
 
   await 이력그리기();
-  await 답변진행그리기();
-
-  // 전송 도중 팝업이 닫혔더라도, 10분 안에 다시 열면 지난 결과를 보여줍니다.
-  const 지난 = 저장값.마지막결과;
-  if (지난 && Date.now() - 지난.시각 < 10 * 60 * 1000) {
-    상태표시(지난.결과들, "지난 전송 결과");
-  }
 }
 
 /** 내용이 창보다 크면 창을 위로 늘려 전부 보이게 합니다. */
@@ -92,38 +84,44 @@ function 현재프로필() {
   );
 }
 
-/** 사이트별 성공/실패를 팝업에 표시합니다. */
-function 상태표시(결과들, 제목) {
+/* ── 알림 토스트 ──
+ * 진행·성공은 세 AI 창에서 직접 보이므로 표시하지 않습니다.
+ * "실패했을 때만" 우측 하단에 잠깐 나타났다 사라집니다 (레이아웃 불변).
+ */
+let 토스트타이머 = null;
+function 토스트(내용HTML목록, 지속 = 8000) {
   const 상자 = document.getElementById("상태");
+  if (!내용HTML목록.length) return;
   상자.innerHTML = "";
-  if (제목) {
-    const 머리 = document.createElement("div");
-    머리.className = "안내";
-    머리.textContent = `— ${제목} —`;
-    상자.appendChild(머리);
-  }
-  for (const r of 결과들) {
-    const 줄 = document.createElement("div");
-    줄.className = r.성공 ? "성공" : "실패";
-    줄.textContent = r.성공
-      ? `✅ ${r.이름 || 사이트이름[r.사이트]} — 전송됨`
-      : `❌ ${r.이름 || 사이트이름[r.사이트]} — ${r.사유 || "알 수 없는 오류"}`;
-    상자.appendChild(줄);
+  for (const el of 내용HTML목록) 상자.appendChild(el);
+  상자.classList.remove("숨김");
+  if (토스트타이머) clearTimeout(토스트타이머);
+  토스트타이머 = setTimeout(() => 상자.classList.add("숨김"), 지속);
+}
 
-    // 모델 자동 선택은 실패해도 전송을 막지 않으므로 안내만 덧붙입니다.
-    if (r.모델 && r.모델.시도 && !r.모델.성공) {
-      const 안내 = document.createElement("div");
-      안내.className = "안내";
-      const 사유 = r.모델.사유 ? ` (${r.모델.사유})` : "";
-      안내.textContent = `ℹ ${r.이름} 모델 자동 선택 실패${사유} — 현재 설정 모델로 전송됨`;
-      상자.appendChild(안내);
+function 글줄(글, 클래스) {
+  const d = document.createElement("div");
+  d.className = 클래스 || "안내";
+  d.textContent = 글;
+  return d;
+}
+
+/** 전송 결과 중 "실패한 곳만" 토스트로 알립니다. */
+function 상태표시(결과들) {
+  const 줄들 = [];
+  for (const r of 결과들 || []) {
+    if (!r.성공) {
+      줄들.push(
+        글줄(
+          `❌ ${r.이름 || 사이트이름[r.사이트]} — ${r.사유 || "알 수 없는 오류"}`,
+          "실패"
+        )
+      );
     }
   }
-  if (결과들.some((r) => !r.성공)) {
-    const 도움 = document.createElement("div");
-    도움.className = "안내";
-    도움.textContent = "선택자가 깨진 것 같다면 저장소의 수리요청.md 를 참고하세요.";
-    상자.appendChild(도움);
+  if (줄들.length) {
+    줄들.push(글줄("계속 실패하면 저장소의 수리요청.md 를 참고하세요."));
+    토스트(줄들);
   }
 }
 
@@ -285,30 +283,6 @@ async function 이력그리기() {
   }
 }
 
-/* ───────────── 답변 진행 상태 (⏳/✅) ─────────────
- * content.js → background → 세션 저장소로 전달된 상태를 실시간 구독합니다.
- */
-const 상태그림 = { 대기: "⏳", 생성중: "✍️", 완료: "✅", 모름: "❔" };
-
-async function 답변진행그리기() {
-  const { 답변상태 } = await chrome.storage.session.get("답변상태");
-  const 상자 = document.getElementById("답변진행");
-  if (!답변상태 || !Object.keys(답변상태).length) {
-    상자.textContent = "";
-    return;
-  }
-  const 조각 = Object.entries(답변상태).map(
-    ([키, v]) => `${상태그림[v.상태] || "❔"}${사이트이름[키] || 키}`
-  );
-  const 전부완료 = Object.values(답변상태).every((v) => v.상태 === "완료");
-  상자.textContent =
-    "답변 진행: " + 조각.join(" · ") + (전부완료 ? " — 모두 완료!" : "");
-}
-
-chrome.storage.onChanged.addListener((변경, 영역) => {
-  if (영역 === "session" && 변경.답변상태) 답변진행그리기();
-});
-
 /* ───────────── 답변 모으기 ─────────────
  * 세 사이트의 최신 답변을 걷어 와 하나의 문서로 만들어
  * 클립보드에 복사하고, 아래에 펼쳐볼 수 있게 보여줍니다.
@@ -350,7 +324,8 @@ async function 답변모으기() {
       펼침.appendChild(본문칸);
       결과상자.appendChild(펼침);
     }
-    document.getElementById("상태").textContent = 요약.join(" ");
+    const 실패요약 = 요약.filter((글) => 글.startsWith("❌"));
+    if (실패요약.length) 토스트(실패요약.map((글) => 글줄(글, "실패")));
   } finally {
     버튼.disabled = false;
     버튼.textContent = "답변 모으기";
@@ -365,7 +340,6 @@ async function 전송() {
 
   const 버튼 = document.getElementById("전송버튼");
   버튼.disabled = true;
-  document.getElementById("상태").textContent = "전송 중…";
 
   // 입력칸은 비우고, 질문은 이력으로 내려보냅니다.
   // (실패하면 이력에서 클릭 한 번으로 다시 불러올 수 있습니다)
@@ -384,8 +358,7 @@ async function 전송() {
     상태표시((응답 && 응답.결과들) || []);
   } catch (e) {
     // 백그라운드와의 연결이 끊긴 드문 경우에도 안내는 남깁니다.
-    document.getElementById("상태").textContent =
-      "결과를 받지 못했습니다. 명령창을 다시 열면 지난 전송 결과가 표시됩니다.";
+    토스트([글줄("전송 결과를 받지 못했습니다. 세 AI 창을 직접 확인하세요.", "실패")]);
   } finally {
     버튼.disabled = false;
     질문칸.focus();
@@ -405,8 +378,6 @@ document.getElementById("창정리버튼").addEventListener("click", () => {
 });
 document.getElementById("새대화버튼").addEventListener("click", () => {
   chrome.runtime.sendMessage({ 종류: "새대화" });
-  document.getElementById("상태").textContent =
-    "세 사이트를 새 대화 화면으로 이동했습니다.";
 });
 document.getElementById("모두닫기버튼").addEventListener("click", () => {
   // 실수로 누르는 것을 막기 위해 한 번 확인합니다.
@@ -417,8 +388,7 @@ document.getElementById("모두닫기버튼").addEventListener("click", () => {
   )
     return;
   chrome.runtime.sendMessage({ 종류: "모두닫기" });
-  document.getElementById("상태").textContent =
-    "세 AI 창을 닫았습니다. [정렬] 또는 Alt+3 으로 다시 엽니다.";
+  토스트([글줄("세 AI 창을 닫았습니다. [정렬] 또는 Alt+3 으로 다시 엽니다.")], 6000);
 });
 document.getElementById("이력지우기").addEventListener("click", async (e) => {
   e.preventDefault();
