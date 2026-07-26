@@ -33,11 +33,24 @@
     <button id="전송버튼" class="주요">🚀 3곳에 동시 전송</button>
 
     <div id="상태" class="상태"></div>
+    <div id="답변진행" class="상태"></div>
+
+    <div class="줄">
+      <button id="모으기버튼" class="보조 넓게">
+        📋 세 답변 모으기 (클립보드 복사)
+      </button>
+    </div>
+    <div id="모으기결과"></div>
 
     <div class="이력머리">
       <span class="라벨">보낸 질문 이력</span>
-      <a href="#" id="이력지우기">지우기</a>
+      <span>
+        <a href="#" id="이력내보내기" title="이력 전체를 파일로 저장">내보내기</a>
+        ·
+        <a href="#" id="이력지우기">지우기</a>
+      </span>
     </div>
+    <input id="이력검색" type="text" placeholder="🔍 이력 검색 (별표 ★는 즐겨찾기로 맨 위 고정)" />
     <div id="이력" class="이력"></div>
 
     <div class="줄">

@@ -165,3 +165,31 @@ a {
 .체크 input {
   width: auto;
 }
+.넓게 {
+  width: 100%;
+}
+.이력날짜 {
+  font-weight: 700;
+  color: #666;
+  font-size: 12px;
+  margin: 6px 2px 2px;
+}
+.별 {
+  cursor: pointer;
+  color: #e8a712;
+}
+#이력검색 {
+  margin-top: 4px;
+}
+#모으기결과 details {
+  margin-top: 6px;
+}
+#모으기결과 summary {
+  cursor: pointer;
+  color: #2f6fed;
+  font-size: 12px;
+}
+#모으기결과 textarea {
+  margin-top: 4px;
+  font-size: 12px;
+}

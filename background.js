@@ -372,6 +372,48 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
     return true;
   }
 
+  // content.js가 보내는 답변 진행 상태를 세션 저장소에 기록합니다.
+  // 명령창은 storage 변경을 구독해 실시간으로 ⏳/✅ 를 갱신합니다.
+  if (메시지.종류 === "답변상태") {
+    (async () => {
+      const { 답변상태 } = await chrome.storage.session.get("답변상태");
+      const 지금 = 답변상태 || {};
+      지금[메시지.사이트] = { 상태: 메시지.상태, 시각: Date.now() };
+      await chrome.storage.session.set({ 답변상태: 지금 });
+      응답({ 성공: true });
+    })();
+    return true;
+  }
+
+  // 세 사이트의 최신 답변을 한꺼번에 걷어 옵니다 (답변 모으기).
+  if (메시지.종류 === "답변수집") {
+    (async () => {
+      const 설정 = await 설정불러오기();
+      const 결과 = {};
+      await Promise.all(
+        설정.창순서.map(async (사이트키) => {
+          const 이름 = BRIDGE_SELECTORS[사이트키].이름;
+          try {
+            const 탭 = await 기존탭찾기(사이트키);
+            if (!탭) {
+              결과[사이트키] = { 이름, 성공: false, 사유: "창이 열려 있지 않음" };
+              return;
+            }
+            const r = await 탭에보내기(탭.id, {
+              종류: "답변수집",
+              사이트: 사이트키,
+            });
+            결과[사이트키] = Object.assign({ 이름 }, r || { 성공: false });
+          } catch (e) {
+            결과[사이트키] = { 이름, 성공: false, 사유: "페이지와 통신 실패" };
+          }
+        })
+      );
+      응답({ 결과 });
+    })();
+    return true;
+  }
+
   if (메시지.종류 === "모두닫기") {
     모두닫기().then(() => 응답({ 성공: true }));
     return true;
@@ -401,6 +443,11 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
         null;
 
       const 대상 = 설정.창순서.filter((키) => 메시지.사이트사용[키]);
+
+      // 답변 진행 상태를 초기화합니다 (보낼 사이트는 "대기"로).
+      const 초기상태 = {};
+      for (const 키 of 대상) 초기상태[키] = { 상태: "대기", 시각: Date.now() };
+      await chrome.storage.session.set({ 답변상태: 초기상태 });
 
       // 대상 사이트가 모두 이미 열려 있으면 창을 움직이지 않습니다.
       // (후속 질문 때마다 창이 재배치되는 것을 막고, 팝업도 닫히지 않음)
