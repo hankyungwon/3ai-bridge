@@ -669,34 +669,16 @@ body.바 {
   color: #e6fbff;
   border-top: none;
   padding: 0 12px 10px;
-  gap: 8px;
+  gap: 6px;
 }
 
-/* 상단 커피색 헤더 띠 — 위쪽 AI 화면과 이 바를 갈라 주는 경계 */
-.헤더띠 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 -12px 2px;
-  padding: 4px 14px;
-  background: linear-gradient(90deg, #22c1d6, #12a3bb 55%, #0e8ba3);
-  border-bottom: 1px solid #39d3e6;
+/* 상단 경계선 — 글자 없이 선 하나로 위쪽 AI 화면과 이 바를 가릅니다.
+   (이름·버전은 창 제목줄에 이미 표시되므로 중복하지 않음) */
+.경계선 {
+  height: 3px;
+  margin: 0 -12px 4px;
+  background: linear-gradient(90deg, #22c1d6, #5ee7f5 50%, #22c1d6);
   flex: none;
-}
-.헤더이름 {
-  font-weight: 800;
-  font-size: 12.5px;
-  color: #eafcff;
-  letter-spacing: 0.02em;
-}
-.헤더별명 {
-  font-size: 11.5px;
-  color: #bdf0f8;
-  flex: 1;
-}
-.헤더버전 {
-  font-size: 11px;
-  color: #8fdfec;
 }
 
 /* 입력칸: 커피색 바 안의 "검정 콘솔" — Gemini 창과는 액자가 달라 혼동 없음 */
