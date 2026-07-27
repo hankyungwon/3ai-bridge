@@ -414,20 +414,12 @@ chrome.runtime.onStartup.addListener(async () => {
   }
 });
 
-// 단축키 처리
-//  Alt+3: 3개 창 배치 + 명령바를 하단에 스냅
-//  Alt+1 / Alt+2 / Alt+4: 왼쪽/가운데/오른쪽 AI 창 앞으로
-//  (겹침 배치에서 가운데 창이 완전히 가려졌을 때 Alt+2 가 특히 유용)
+// 단축키는 하나만 둡니다: 3대장 호출 (윈도우 Alt+3, 맥 Control+3)
+// 창 전환은 명령바의 제비·참새·하마 버튼으로 합니다.
 chrome.commands.onCommand.addListener(async (명령) => {
   if (명령 === "open-three") {
     await 창정리(); // 명령바 배치 포함
     await 명령창앞으로();
-    return;
-  }
-  const 자리 = { "focus-left": 0, "focus-center": 1, "focus-right": 2 }[명령];
-  if (자리 !== undefined) {
-    const 설정 = await 설정불러오기();
-    await 사이트창앞으로(설정.창순서[자리]);
   }
 });
 

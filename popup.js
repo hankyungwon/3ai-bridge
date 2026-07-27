@@ -26,7 +26,7 @@ async function 초기화() {
     const 버튼 = document.createElement("button");
     버튼.className = "전환버튼";
     버튼.textContent = 사이트별명[키] || 사이트이름[키];
-    버튼.title = `${사이트이름[키]} 창을 앞으로 (Alt+${[1, 2, 4][i]})`;
+    버튼.title = `${사이트이름[키]} 창을 앞으로`;
     버튼.dataset.사이트 = 키;
     버튼.addEventListener("click", () => {
       chrome.runtime.sendMessage({ 종류: "창포커스", 사이트: 키 });
