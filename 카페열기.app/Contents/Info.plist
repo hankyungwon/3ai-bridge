@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>AI 3대장 카페</string>
+	<key>CFBundleDisplayName</key>
+	<string>AI 3대장 카페</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.hankyungwon.ai3cafe</string>
+	<key>CFBundleVersion</key>
+	<string>1.14.0</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleExecutable</key>
+	<string>cafe</string>
+	<key>CFBundleIconFile</key>
+	<string>icon</string>
+	<key>LSUIElement</key>
+	<true/>
+</dict>
+</plist>

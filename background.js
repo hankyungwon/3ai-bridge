@@ -285,10 +285,8 @@ async function 명령창열기(스냅 = false) {
   const { 명령창ID } = await chrome.storage.session.get("명령창ID");
   if (명령창ID) {
     try {
-      await chrome.windows.update(
-        명령창ID,
-        스냅 ? { focused: true, state: "normal", ...바위치 } : { focused: true }
-      );
+      await chrome.windows.update(명령창ID, { focused: true });
+      if (스냅) await 명령바스냅(false); // 실측 검증까지 포함해 하단에 재정렬
       return 명령창ID;
     } catch (e) {
       /* 창이 이미 닫혔으면 아래에서 새로 만듭니다 */
@@ -302,6 +300,7 @@ async function 명령창열기(스냅 = false) {
     ...바위치,
   });
   await chrome.storage.session.set({ 명령창ID: 새창.id });
+  await 명령바스냅(false); // 만든 직후에도 실측 검증으로 하단에 정확히
   return 새창.id;
 }
 
@@ -316,18 +315,36 @@ async function 명령바스냅(펼침) {
   const { 명령창ID } = await chrome.storage.session.get("명령창ID");
   if (!명령창ID) return null;
   const 영역 = await 화면영역구하기();
+  const 화면하단 = 영역.top + 영역.height;
   const 높이 = Math.min(
     영역.height, // 화면보다 커지지 않게
     펼침 ? 명령바높이 + 패널펼침높이 : 명령바높이
   );
-  const 위치 = {
+  let 위치 = {
     left: 영역.left,
-    top: 영역.top + 영역.height - 높이,
+    top: 화면하단 - 높이,
     width: 영역.width,
     height: 높이,
   };
   try {
-    await chrome.windows.update(명령창ID, { state: "normal", ...위치 });
+    // 맥 크롬은 상태와 좌표를 한 번에 보내면 좌표를 무시하기도 하므로
+    // 상태 복구 → 좌표 적용을 나눠서 합니다.
+    await chrome.windows.update(명령창ID, { state: "normal" });
+
+    // "요청"만 하고 끝내지 않고, 실제로 놓인 위치를 읽어 검증합니다.
+    // 맥이 창 크기를 요청과 다르게 잡으면 아래로 넘친 만큼 끌어올려
+    // 다시 적용합니다 (최대 3회). — 명령바가 독(Dock) 밑으로 숨는 문제의 근본 대책
+    for (let i = 0; i < 3; i++) {
+      await chrome.windows.update(명령창ID, 위치);
+      const 실측 = await chrome.windows.get(명령창ID);
+      const 넘침 = 실측.top + 실측.height - 화면하단;
+      if (넘침 <= 0) return 위치;
+      위치 = {
+        ...위치,
+        height: 실측.height,
+        top: Math.max(영역.top, 화면하단 - 실측.height),
+      };
+    }
     return 위치;
   } catch (e) {
     return null;
