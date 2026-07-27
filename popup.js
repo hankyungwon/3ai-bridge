@@ -13,7 +13,6 @@ async function 초기화() {
   // 창 제목에 이름과 버전을 깔끔하게 표시합니다 (뒤의 .0은 생략: 1.8.0 → v1.8)
   const 버전 = chrome.runtime.getManifest().version.replace(/\.0$/, "");
   document.title = `AI 3대장(제비·참새·하마) 카페 v${버전}`;
-  document.getElementById("헤더버전").textContent = "v" + 버전;
 
   현재설정 = await 설정불러오기();
   // 프로필·대상 선택은 명령바에서 뺐습니다(⚙ 설정에서 관리).
