@@ -105,6 +105,8 @@ function 실효배치모드(설정, 영역) {
 // AI 창들은 이 높이만큼 짧게 배치되어, 명령바가 화면을 가리지 않고
 // 화면 맨 아래 전용 띠 공간에 자리잡습니다.
 const 명령바높이 = 160;
+// "이력" 패널을 펼쳤을 때 추가로 늘어나는 높이
+const 패널펼침높이 = 300;
 
 function 배치계산(영역, 순서, 모드, 바상단) {
   const 위치들 = {};
@@ -301,6 +303,35 @@ async function 명령창열기(스냅 = false) {
   });
   await chrome.storage.session.set({ 명령창ID: 새창.id });
   return 새창.id;
+}
+
+/**
+ * 명령바를 화면 맨 아래에 다시 붙입니다(절대 좌표).
+ * 예전에는 "현재 위치에서 300px 위로" 같은 상대 계산을 썼는데,
+ * 크롬이 크기를 조정하면 오차가 쌓여 명령바가 작업표시줄·독 아래로
+ * 밀려 내려가 버튼을 누를 수 없게 되는 문제가 있었습니다.
+ * 이제는 매번 화면 작업영역을 다시 재서 하단에 정확히 붙입니다.
+ */
+async function 명령바스냅(펼침) {
+  const { 명령창ID } = await chrome.storage.session.get("명령창ID");
+  if (!명령창ID) return null;
+  const 영역 = await 화면영역구하기();
+  const 높이 = Math.min(
+    영역.height, // 화면보다 커지지 않게
+    펼침 ? 명령바높이 + 패널펼침높이 : 명령바높이
+  );
+  const 위치 = {
+    left: 영역.left,
+    top: 영역.top + 영역.height - 높이,
+    width: 영역.width,
+    height: 높이,
+  };
+  try {
+    await chrome.windows.update(명령창ID, { state: "normal", ...위치 });
+    return 위치;
+  } catch (e) {
+    return null;
+  }
 }
 
 /** 지정한 사이트의 창을 맨 앞으로 가져옵니다 (창 전환 버튼·단축키용). */
@@ -535,6 +566,42 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
     return true;
   }
 
+  // 명령바 크기·위치를 화면 하단에 다시 맞춥니다(이력 패널 열고 닫을 때).
+  if (메시지.종류 === "명령바스냅") {
+    명령바스냅(!!메시지.펼침).then((위치) => 응답({ 위치 }));
+    return true;
+  }
+
+  // 바로가기(카페열기)가 연 표식 주소를 content.js가 감지해 보낸 신호
+  if (메시지.종류 === "카페열기") {
+    (async () => {
+      try {
+        // 표식용으로 열린 탭이 기존 대화 탭을 밀어내지 않도록,
+        // 같은 사이트 탭이 이미 있으면 표식 탭은 닫습니다.
+        const 발신탭 = 발신 && 발신.tab;
+        if (발신탭) {
+          const 사이트 = 사이트판별(발신탭.url || "");
+          if (사이트) {
+            const 호스트들 = BRIDGE_SELECTORS[사이트].호스트;
+            const 전체 = await chrome.tabs.query({});
+            const 같은사이트 = 전체.filter((t) =>
+              호스트들.some((h) => (t.url || t.pendingUrl || "").includes("://" + h))
+            );
+            if (같은사이트.length > 1) {
+              await chrome.tabs.remove(발신탭.id);
+            }
+          }
+        }
+      } catch (e) {
+        /* 표식 탭 정리 실패는 무시 */
+      }
+      await 창정리();
+      await 명령창앞으로();
+      응답({ 성공: true });
+    })();
+    return true;
+  }
+
   // 명령바의 창 전환 버튼: 해당 사이트 창을 맨 앞으로
   if (메시지.종류 === "창포커스") {
     사이트창앞으로(메시지.사이트).then((성공) => 응답({ 성공 }));
@@ -542,7 +609,10 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
   }
 
   if (메시지.종류 === "모두닫기") {
-    모두닫기().then(() => 응답({ 성공: true }));
+    모두닫기()
+      .then(() => 명령바스냅(false)) // 닫은 뒤 명령바를 하단 제자리로
+      .then(() => 명령창앞으로())
+      .then(() => 응답({ 성공: true }));
     return true;
   }
 
