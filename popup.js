@@ -13,6 +13,7 @@ async function 초기화() {
   // 창 제목에 이름과 버전을 깔끔하게 표시합니다 (뒤의 .0은 생략: 1.8.0 → v1.8)
   const 버전 = chrome.runtime.getManifest().version.replace(/\.0$/, "");
   document.title = `AI 3대장(제비·참새·하마) 카페 v${버전}`;
+  document.getElementById("헤더버전").textContent = "v" + 버전;
 
   현재설정 = await 설정불러오기();
   // 프로필·대상 선택은 명령바에서 뺐습니다(⚙ 설정에서 관리).
@@ -37,6 +38,12 @@ async function 초기화() {
 
   const 질문칸 = document.getElementById("질문");
   질문칸.focus();
+
+  // 입력칸이 비어 있을 때만 프롬프트 커서를 깜박입니다.
+  const 깜박커서 = document.getElementById("깜박커서");
+  const 커서갱신 = () => 깜박커서.classList.toggle("숨김", 질문칸.value.length > 0);
+  질문칸.addEventListener("input", 커서갱신);
+  커서갱신();
   // 명령바가 다시 앞으로 올 때마다 커서를 자동으로 입력칸 좌상단에 둡니다.
   window.addEventListener("focus", () => 질문칸.focus());
 
@@ -237,6 +244,7 @@ function 이력항목만들기(항목) {
   줄.addEventListener("click", () => {
     const 질문칸 = document.getElementById("질문");
     질문칸.value = 항목.질문.replace(/^\[📎\d+\] /, ""); // 첨부 표식은 떼고 불러옴
+    질문칸.dispatchEvent(new Event("input"));
     질문칸.focus();
   });
   return 줄;
@@ -270,6 +278,7 @@ async function 미니이력그리기() {
     줄.addEventListener("click", () => {
       const 질문칸 = document.getElementById("질문");
       질문칸.value = 항목.질문.replace(/^\[📎\d+\] /, "");
+      질문칸.dispatchEvent(new Event("input"));
       질문칸.focus();
     });
     상자.appendChild(줄);
@@ -388,6 +397,7 @@ async function 전송() {
   // (실패하면 이력에서 클릭 한 번으로 다시 불러올 수 있습니다)
   const 프로필 = 현재프로필();
   질문칸.value = "";
+  질문칸.dispatchEvent(new Event("input"));
   const 보낼첨부 = 첨부목록;
   첨부목록 = [];
   첨부그리기();
