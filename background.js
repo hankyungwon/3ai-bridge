@@ -350,6 +350,22 @@ chrome.action.onClicked.addListener(() => {
   명령창열기();
 });
 
+// 크롬을 새로 켤 때 자동으로 3대장 창과 명령바를 엽니다.
+// (설정에서 끌 수 있습니다. 바탕화면 바로가기와 함께 쓰면
+//  아이콘 하나로 카페가 통째로 열립니다.)
+chrome.runtime.onStartup.addListener(async () => {
+  try {
+    const 설정 = await 설정불러오기();
+    if (설정.시작시자동열기 === false) return;
+    // 크롬이 완전히 뜰 때까지 잠깐 기다린 뒤 엽니다.
+    await 잠깐(2500);
+    await 창정리();
+    await 명령창앞으로();
+  } catch (e) {
+    /* 자동 열기 실패는 조용히 넘어갑니다 */
+  }
+});
+
 // 단축키 처리
 //  Alt+3: 3개 창 배치 + 명령바를 하단에 스냅
 //  Alt+1 / Alt+2 / Alt+4: 왼쪽/가운데/오른쪽 AI 창 앞으로
