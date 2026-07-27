@@ -28,8 +28,10 @@ else
 fi
 
 cp -R "$tmp/3ai-bridge-main/." .
-# 이 스크립트 자신은 실행 권한을 유지합니다.
-chmod +x "$0" 2>/dev/null || true
+# 이 스크립트와 바로가기 앱의 실행 권한을 유지하고,
+# 맥이 붙이는 격리 표시(보안 경고의 원인)를 걷어냅니다.
+chmod +x "$0" "카페열기.app/Contents/MacOS/cafe" 2>/dev/null || true
+xattr -dr com.apple.quarantine "카페열기.app" 2>/dev/null || true
 
 echo ""
 echo "업데이트 완료!"

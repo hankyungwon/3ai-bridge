@@ -1,0 +1,4 @@
+#!/bin/bash
+# AI 3대장 카페 바로가기 — 더블클릭하면 (터미널 창 없이) 크롬으로
+# 표식 주소를 열고, 확장이 표식을 보고 3대장 창과 명령바를 정렬해 엽니다.
+exec open -a "Google Chrome" "https://gemini.google.com/app#3ai-cafe"
