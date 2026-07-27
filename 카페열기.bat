@@ -1,25 +1,17 @@
 @echo off
 rem ============================================================
 rem Launcher for AI 3-Daejang Cafe (Windows)
-rem Double-click to start Chrome and open the cafe.
-rem  - If Chrome is closed: starting Chrome makes the extension
-rem    open the cafe automatically (Settings > "open on start").
-rem  - If Chrome is already running: brings it to front and
-rem    presses Alt+3 for you.
+rem
+rem Double-click to open the cafe. Works whether Chrome is
+rem already running or not, and needs no special permissions.
+rem
+rem How it works: it opens a marker URL (#3ai-cafe). The
+rem extension sees the marker and arranges the three AI windows
+rem plus the command bar.
 rem
 rem To pin: right-click this file > Send to > Desktop (create shortcut)
 rem NOTE: English-only on purpose. Korean text breaks .bat files
 rem       on Korean Windows (encoding mismatch).
 rem ============================================================
-setlocal
-
-tasklist /FI "IMAGENAME eq chrome.exe" 2>nul | find /I "chrome.exe" >nul
-if errorlevel 1 (
-  echo Starting Chrome... the cafe will open shortly.
-  start "" chrome.exe
-) else (
-  echo Chrome is already running - opening the cafe...
-  powershell -NoProfile -Command "$w = New-Object -ComObject WScript.Shell; $w.AppActivate('Chrome') | Out-Null; Start-Sleep -Milliseconds 400; $w.SendKeys('%%3')"
-)
-
+start "" chrome.exe "https://gemini.google.com/app#3ai-cafe"
 exit /b 0

@@ -127,15 +127,25 @@
           return { 성공: true, 방식 };
         }
         // 기본: 붙여넣기 이벤트
+        // 파일이 여러 개일 때 한 번에 붙이면 첫 번째만 인식하는 사이트가
+        // 있어(ChatGPT 등), 파일을 하나씩 차례로 붙여넣습니다.
         입력란.focus();
-        입력란.dispatchEvent(
-          new ClipboardEvent("paste", {
-            clipboardData: dt,
-            bubbles: true,
-            cancelable: true,
-          })
-        );
-        await 잠깐(1200);
+        const 파일들 = [...dt.files];
+        for (const 파일 of 파일들) {
+          const 하나 = new DataTransfer();
+          하나.items.add(파일);
+          const 지금입력란 = 요소찾기(설정.입력란) || 입력란;
+          지금입력란.focus();
+          지금입력란.dispatchEvent(
+            new ClipboardEvent("paste", {
+              clipboardData: 하나,
+              bubbles: true,
+              cancelable: true,
+            })
+          );
+          // 앞 파일 업로드가 시작될 시간을 준 뒤 다음 파일을 붙입니다.
+          await 잠깐(파일들.length > 1 ? 1500 : 1200);
+        }
         return { 성공: true, 방식 };
       }
       return { 성공: false };
@@ -395,6 +405,20 @@
     }
 
     return { 시도: true, 성공: false, 사유: "선택 확인 실패" };
+  }
+
+  /* ─────────────── 바로가기 표식 감지 ───────────────
+   * 바탕화면/Dock의 "카페열기" 바로가기는 주소 끝에 #3ai-cafe 를 붙여
+   * 사이트를 엽니다. 그 표식을 발견하면 백그라운드에 카페를 열라고 알립니다.
+   * (크롬이 꺼져 있든 켜져 있든 동작하며, 별도 권한이 필요 없습니다)
+   */
+  if (location.hash === "#3ai-cafe") {
+    try {
+      history.replaceState(null, "", location.pathname + location.search);
+      chrome.runtime.sendMessage({ 종류: "카페열기" }).catch(() => {});
+    } catch (e) {
+      /* 무시 */
+    }
   }
 
   /* ─────────────── 호버 포커스 (겹침 배치용) ───────────────

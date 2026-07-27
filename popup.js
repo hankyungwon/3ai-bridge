@@ -47,19 +47,12 @@ async function 초기화() {
   await 이력그리기();
 }
 
-/** 내용이 창보다 크면 창을 위로 늘려 전부 보이게 합니다. */
+/** 명령바를 화면 하단 제자리에 다시 붙입니다(내용이 잘리는 것 방지). */
 async function 창높이맞춤() {
   try {
-    const 부족 = document.body.scrollHeight - window.innerHeight;
-    if (부족 > 2) {
-      const 창 = await chrome.windows.getCurrent();
-      await chrome.windows.update(창.id, {
-        top: 창.top - 부족,
-        height: 창.height + 부족,
-      });
-    }
+    await chrome.runtime.sendMessage({ 종류: "명령바스냅", 펼침: 패널열림 });
   } catch (e) {
-    /* 크기 조절이 안 되는 환경이면 그대로 둠 */
+    /* 조절이 안 되는 환경이면 그대로 둠 */
   }
 }
 
@@ -484,8 +477,10 @@ document.getElementById("모으기버튼").addEventListener("click", async () =>
   await 확장패널열기(true); // 모은 답변을 바로 볼 수 있게 패널을 펼칩니다
 });
 
-/* ── 접이식 패널: 명령바 창을 위로 늘려 이력·모은 답변을 보여줍니다 ── */
-const 패널확장높이 = 300;
+/* ── 접이식 패널: 명령바를 위로 늘려 이력·모은 답변을 보여줍니다 ──
+ * 크기 조절은 백그라운드가 "화면 하단에 절대 좌표로" 다시 붙이는 방식입니다.
+ * (예전의 상대 계산은 오차가 쌓여 명령바가 작업표시줄 아래로 숨는 문제가 있었음)
+ */
 let 패널열림 = false;
 
 async function 확장패널열기(열기) {
@@ -493,14 +488,9 @@ async function 확장패널열기(열기) {
   패널열림 = 열기;
   document.getElementById("확장패널").classList.toggle("숨김", !열기);
   try {
-    // 명령바는 화면 맨 아래에 있으므로, 위쪽으로 키우고 줄입니다.
-    const 창 = await chrome.windows.getCurrent();
-    await chrome.windows.update(창.id, {
-      top: 창.top + (열기 ? -패널확장높이 : 패널확장높이),
-      height: 창.height + (열기 ? 패널확장높이 : -패널확장높이),
-    });
+    await chrome.runtime.sendMessage({ 종류: "명령바스냅", 펼침: 열기 });
   } catch (e) {
-    /* 창 크기 조절이 안 되는 환경이면 패널만 토글 */
+    /* 크기 조절이 안 되는 환경이면 패널만 토글 */
   }
 }
 
