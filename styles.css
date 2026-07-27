@@ -592,3 +592,56 @@ body.바 .전환버튼.눌림:hover {
 .첨부엑스:hover {
   color: #f2837b;
 }
+
+/* ═══════════ 내 입력창 구별 (Gemini의 검은 입력창과 혼동 방지) ═══════════
+ * 세 AI 중 Gemini가 어두운 입력창을 쓰므로, "나의 입력창"은
+ * 크림색(카페 라떼 톤) 바탕 + 호박색 테두리로 확실히 다르게 만듭니다.
+ */
+body.바 .작성칸 {
+  background: #f7efe2; /* 크림 */
+  border: 2px solid #d9a441; /* 호박색 */
+  border-left-width: 6px; /* 왼쪽에 굵은 띠 — 한눈에 "내 자리" */
+  box-shadow: 0 0 0 1px rgba(217, 164, 65, 0.25);
+}
+body.바 .작성칸:focus-within {
+  border-color: #efb95c;
+  box-shadow: 0 0 0 4px rgba(239, 185, 92, 0.28);
+}
+body.바 textarea#질문 {
+  background: transparent;
+  color: #2b2118; /* 진한 갈색 글자 */
+  caret-color: #b5791f;
+}
+body.바 textarea#질문::placeholder {
+  color: #a08e75;
+}
+/* 첨부 칩도 크림 카드 위에 맞게 */
+body.바 .첨부칩 {
+  background: #efe2cc;
+  border-color: #d9c49a;
+  color: #4a3a25;
+}
+body.바 .첨부엑스 {
+  color: #8a7454;
+}
+/* 전송 버튼: 크림 카드 위에서 또렷하게 */
+body.바 .작성칸 button.주요 {
+  background: #b5791f;
+  border-color: #9a6416;
+  color: #fff;
+}
+body.바 .작성칸 button.주요:hover {
+  background: #c9871f;
+  border-color: #b5791f;
+  color: #fff;
+}
+/* ＋첨부 버튼도 크림 카드 톤으로 */
+body.바 .작성칸 button.보조 {
+  background: #efe2cc;
+  border-color: #d9c49a;
+  color: #5c4a30;
+}
+body.바 .작성칸 button.보조:hover {
+  background: #e6d5b8;
+  border-color: #c8ad7d;
+}
