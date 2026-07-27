@@ -657,3 +657,217 @@ body.바 button.위험:hover {
   background: #5a312e;
   border-color: #c0564f;
 }
+
+/* ═══════════ 카페 테마 (v1.15) ═══════════
+ * 세 AI 창은 검정(Gemini) 아니면 흰색(ChatGPT·Claude)입니다.
+ * 그래서 이 명령바는 "커피색"으로 칠해 어느 쪽과도 닮지 않게 하고,
+ * 그 안의 입력칸은 다시 검정으로 되돌립니다.
+ * — 커피색 액자 안의 검은 입력칸이므로 Gemini 입력창과 헷갈리지 않습니다.
+ */
+body.바 {
+  background: linear-gradient(180deg, #5c4433, #43322a);
+  color: #f0e4d6;
+  border-top: none;
+  padding: 0 12px 10px;
+  gap: 8px;
+}
+
+/* 상단 커피색 헤더 띠 — 위쪽 AI 화면과 이 바를 갈라 주는 경계 */
+.헤더띠 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 -12px 2px;
+  padding: 4px 14px;
+  background: linear-gradient(90deg, #7a5a3f, #6b4f3a 60%, #5c4433);
+  border-bottom: 1px solid #8a6a4a;
+  flex: none;
+}
+.헤더이름 {
+  font-weight: 800;
+  font-size: 12.5px;
+  color: #ffe9cf;
+  letter-spacing: 0.02em;
+}
+.헤더별명 {
+  font-size: 11.5px;
+  color: #d9bfa4;
+  flex: 1;
+}
+.헤더버전 {
+  font-size: 11px;
+  color: #c4a17f;
+}
+
+/* 입력칸: 커피색 바 안의 "검정 콘솔" — Gemini 창과는 액자가 달라 혼동 없음 */
+body.바 .작성칸 {
+  background: #14161c;
+  border: 2px solid #8a6a4a;
+  border-left-width: 2px;
+  border-radius: 12px;
+  box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.5);
+  align-items: stretch;
+}
+body.바 .작성칸:focus-within {
+  border-color: #d9a441;
+  box-shadow: 0 0 0 3px rgba(217, 164, 65, 0.3),
+    inset 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+body.바 textarea#질문 {
+  background: transparent;
+  color: #f2f4f8;
+  caret-color: #f0b95c;
+}
+body.바 textarea#질문::placeholder {
+  color: #7d8496;
+}
+/* 프롬프트 기호와 깜박이는 커서 — "여기에 입력하세요" 느낌 */
+.프롬프트기호 {
+  color: #f0b95c;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.55;
+  padding-top: 2px;
+  flex: none;
+  user-select: none;
+}
+.입력겹침 {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.깜박커서 {
+  position: absolute;
+  left: 34px; /* "입력" 글자 바로 뒤 */
+  top: 2px;
+  color: #f0b95c;
+  font-size: 15px;
+  line-height: 1.55;
+  pointer-events: none;
+  animation: 깜박임 1.1s steps(2, start) infinite;
+}
+@keyframes 깜박임 {
+  to {
+    visibility: hidden;
+  }
+}
+/* 첨부 칩: 검은 입력칸 위에 맞게 */
+body.바 .첨부칩 {
+  background: #262a34;
+  border-color: #3c424f;
+  color: #cfd4e0;
+}
+body.바 .첨부엑스 {
+  color: #8a92a6;
+}
+/* 입력칸 안의 버튼들 */
+body.바 .작성칸 button.주요 {
+  background: #b5791f;
+  border-color: #8a5a13;
+  color: #fff;
+  box-shadow: none;
+}
+body.바 .작성칸 button.주요:hover {
+  background: #cf8b1f;
+  border-color: #b5791f;
+}
+body.바 .작성칸 button.보조 {
+  background: #262a34;
+  border-color: #3c424f;
+  color: #cfd4e0;
+}
+body.바 .작성칸 button.보조:hover {
+  background: #313644;
+  border-color: #4d5567;
+}
+
+/* 오른쪽 제어 영역: 커피색 바에 어울리는 톤 */
+body.바 button.보조,
+body.바 .전환버튼 {
+  background: #6b503b;
+  border-color: #85674c;
+  color: #f0e0cd;
+}
+body.바 button.보조:hover,
+body.바 .전환버튼:hover {
+  background: #7d5f45;
+  border-color: #a07e5c;
+}
+body.바 .전환묶음 {
+  background: #6b503b;
+  border-color: #85674c;
+}
+body.바 .전환버튼 {
+  border-right-color: #7d5f45;
+}
+body.바 .전환버튼.눌림 {
+  background: linear-gradient(180deg, #f0b95c, #d9a441);
+  color: #3a2a18;
+  box-shadow: 0 0 10px rgba(240, 185, 92, 0.45);
+}
+body.바 .전환버튼.눌림:hover {
+  background: linear-gradient(180deg, #f5c672, #e0ae4b);
+}
+body.바 .보조설정 {
+  color: #f0d3ad;
+}
+body.바 button.위험 {
+  background: #6e3630;
+  border-color: #a44b43;
+  color: #ffd9d4;
+}
+body.바 button.위험:hover {
+  background: #82403a;
+}
+
+/* 미니 이력: 커피색 바에 얹힌 살짝 밝은 패널 */
+body.바 .미니이력 {
+  background: #4e3a2c;
+  border-color: #6b503b;
+}
+body.바 .미니항목 {
+  border-bottom-color: #5c4634;
+}
+body.바 .미니항목:hover {
+  background: #6b503b;
+}
+body.바 .미니질문 {
+  color: #e2d2be;
+}
+body.바 .미니시간 {
+  color: #ab9078;
+}
+/* 확장 패널·토스트도 카페 톤으로 */
+body.바 .확장패널 {
+  border-top-color: #6b503b;
+}
+body.바 .확장패널 input,
+body.바 #모으기결과 textarea {
+  background: #3d2d22;
+  border-color: #6b503b;
+  color: #f0e4d6;
+}
+body.바 .이력 {
+  border-color: #6b503b;
+}
+body.바 .이력항목 {
+  color: #e2d2be;
+}
+body.바 .이력항목:hover {
+  background: #5c4634;
+}
+body.바 .이력날짜,
+body.바 .안내,
+body.바 .상태 {
+  color: #c0a98f;
+}
+body.바 a,
+body.바 .이력머리 a {
+  color: #f0d3ad;
+}
+body.바 .토스트 {
+  background: #3d2d22;
+  border-color: #6b503b;
+  border-left-color: #f2837b;
+}

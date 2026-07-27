@@ -6,13 +6,25 @@
     <title>AI 3대장(제비·참새·하마) 카페</title>
   </head>
   <body class="바">
+    <!-- 커피색 헤더 띠: 세 AI 화면(검정·흰색)과 이 바를 눈으로 갈라 주는 경계선 -->
+    <div class="헤더띠">
+      <span class="헤더이름">AI 3대장 카페</span>
+      <span class="헤더별명">제비 · 참새 · 하마</span>
+      <span id="헤더버전" class="헤더버전"></span>
+    </div>
+
     <!-- 하단 명령바(지휘소): [작성 카드] [버튼 그룹] [최근 질문 미니 이력] -->
     <div class="바그리드">
       <!-- ── 왼쪽: 작성 카드 — 입력과 전송뿐, 군더더기 없음 ── -->
       <div class="작성칸">
+        <span class="프롬프트기호">❯</span>
         <div class="작성본문">
           <div id="첨부줄" class="첨부줄 숨김"></div>
-          <textarea id="질문" placeholder="질문 입력"></textarea>
+          <div class="입력겹침">
+            <textarea id="질문" placeholder="입력"></textarea>
+            <!-- 비어 있을 때만 보이는 깜박이는 커서 (프롬프트 느낌) -->
+            <span id="깜박커서" class="깜박커서">▌</span>
+          </div>
         </div>
         <div class="작성버튼들">
           <button id="첨부버튼" class="보조" title="파일·사진 첨부 (붙여넣기 Ctrl+V, 끌어다 놓기도 가능)">＋ 첨부</button>
