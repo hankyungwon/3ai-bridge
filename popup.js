@@ -26,7 +26,7 @@ async function 초기화() {
     const 버튼 = document.createElement("button");
     버튼.className = "전환버튼";
     버튼.textContent = 사이트별명[키] || 사이트이름[키];
-    버튼.title = `${사이트이름[키]} 창을 앞으로 (Alt+${[1, 2, 4][i]})`;
+    버튼.title = `${사이트이름[키]} 창을 앞으로`;
     버튼.dataset.사이트 = 키;
     버튼.addEventListener("click", () => {
       chrome.runtime.sendMessage({ 종류: "창포커스", 사이트: 키 });
@@ -454,20 +454,49 @@ document.getElementById("창정리버튼").addEventListener("click", () => {
 document.getElementById("새대화버튼").addEventListener("click", () => {
   chrome.runtime.sendMessage({ 종류: "새대화" });
 });
-document.getElementById("모두닫기버튼").addEventListener("click", () => {
-  // 실수로 누르는 것을 막기 위해 한 번 확인합니다.
-  if (
-    !confirm(
-      "세 AI 창을 모두 닫습니다. (각 사이트의 대화 기록은 그대로 남습니다)\n\n다시 열 때는 [정렬] 버튼이나 Alt+3 만 누르면 됩니다."
-    )
-  )
+// 모두 닫기: 크롬의 확인 대화상자는 명령바가 화면 하단에 있을 때
+// 버튼이 독(Dock) 아래로 내려가 누를 수 없는 문제가 있어 쓰지 않습니다.
+// 대신 같은 버튼이 "정말 닫기?"로 바뀌는 2단 확인 방식을 씁니다.
+let 모두닫기확인타이머 = null;
+const 모두닫기버튼 = document.getElementById("모두닫기버튼");
+function 모두닫기확인해제() {
+  if (모두닫기확인타이머) clearTimeout(모두닫기확인타이머);
+  모두닫기확인타이머 = null;
+  delete 모두닫기버튼.dataset.확인중;
+  모두닫기버튼.textContent = "모두 닫기";
+  모두닫기버튼.classList.remove("위험");
+}
+모두닫기버튼.addEventListener("click", () => {
+  if (!모두닫기버튼.dataset.확인중) {
+    // 1단계: 실수 방지 — 버튼이 그 자리에서 물어봅니다 (4초 안에 다시 누르면 실행)
+    모두닫기버튼.dataset.확인중 = "1";
+    모두닫기버튼.textContent = "정말 닫기?";
+    모두닫기버튼.classList.add("위험");
+    모두닫기확인타이머 = setTimeout(모두닫기확인해제, 4000);
     return;
+  }
+  // 2단계: 실행
+  모두닫기확인해제();
   chrome.runtime.sendMessage({ 종류: "모두닫기" });
   토스트([글줄("세 AI 창을 닫았습니다. [정렬] 또는 Alt+3 으로 다시 엽니다.")], 6000);
 });
+// 이력 지우기: confirm 대화상자 대신 링크가 "정말 지우기?"로 바뀌는 2단 확인
+let 이력지우기타이머 = null;
 document.getElementById("이력지우기").addEventListener("click", async (e) => {
   e.preventDefault();
-  if (!confirm("보낸 질문 이력을 모두 지울까요? (즐겨찾기 포함)")) return;
+  const 링크 = e.target;
+  if (!링크.dataset.확인중) {
+    링크.dataset.확인중 = "1";
+    링크.textContent = "정말 지우기?";
+    이력지우기타이머 = setTimeout(() => {
+      delete 링크.dataset.확인중;
+      링크.textContent = "지우기";
+    }, 4000);
+    return;
+  }
+  clearTimeout(이력지우기타이머);
+  delete 링크.dataset.확인중;
+  링크.textContent = "지우기";
   await chrome.storage.local.remove("질문이력");
   await 이력그리기();
 });
@@ -504,8 +533,9 @@ document.getElementById("대화내보내기").addEventListener("click", async (e
   e.preventDefault();
   const { 대화기록 } = await chrome.storage.local.get("대화기록");
   if (!대화기록 || !대화기록.length) {
-    return alert(
-      "아직 보관된 대화가 없습니다.\n(세 답변 생성이 모두 끝나면 자동으로 보관됩니다)"
+    return 토스트(
+      [글줄("아직 보관된 대화가 없습니다. (세 답변 생성이 모두 끝나면 자동 보관됩니다)")],
+      6000
     );
   }
   let 문서 = "# AI 3대장 브리지 — 대화 보관함\n\n";
@@ -527,7 +557,7 @@ document.getElementById("대화내보내기").addEventListener("click", async (e
 document.getElementById("이력내보내기").addEventListener("click", async (e) => {
   e.preventDefault();
   const 이력 = await 이력불러오기();
-  if (!이력.length) return alert("내보낼 이력이 없습니다.");
+  if (!이력.length) return 토스트([글줄("내보낼 이력이 없습니다.")], 5000);
   let 문서 = "# 3대장 브리지 — 질문 이력\n\n";
   let 현재묶음 = null;
   for (const 항목 of 이력) {

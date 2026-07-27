@@ -645,3 +645,15 @@ body.바 .작성칸 button.보조:hover {
   background: #e6d5b8;
   border-color: #c8ad7d;
 }
+
+/* 2단 확인 상태의 버튼 (모두 닫기 → "정말 닫기?") */
+body.바 button.위험 {
+  background: #4a2a28;
+  border-color: #a44b43;
+  color: #f2837b;
+  font-weight: 700;
+}
+body.바 button.위험:hover {
+  background: #5a312e;
+  border-color: #c0564f;
+}
