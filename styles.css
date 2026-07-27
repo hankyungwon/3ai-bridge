@@ -853,3 +853,252 @@ body.바 .토스트 {
   border-color: #12667a;
   border-left-color: #f2837b;
 }
+
+/* ═══════════════ v1.16 무채색 리스킨 (색상만 교체) ═══════════════
+ * 원칙: 무채색+명도 차이로 구조를 만들고, 강조색(청록)은 전송·포커스 전용.
+ * 3대장 식별색은 탭 밑줄에만 사용. 레이아웃·크기·글꼴·그림자 형태 불변.
+ * 토큰은 컨트롤러 최상위(body.바)에만 선언 — styles.css가 설정 화면과
+ * 공유되므로 전역(:root) 선언은 하지 않는다.
+ */
+body.바 {
+  --bg: #17191d;
+  --surface: #1f2228;
+  --surface-hover: #262a31;
+  --input-bg: #101216;
+  --border: #2e3238;
+  --text: #e8eaee;
+  --text-dim: #8e949e;
+  --accent: #22b8cf;
+  --accent-hover: #3fc7da;
+  --accent-active: #1ca3b8;
+  --on-accent: #0b1416;
+  --btn-2nd: #262a31;
+  --btn-2nd-hover: #2f343c;
+  --btn-2nd-active: #22262c;
+  --danger: #e5645a;
+  --scroll-thumb: #343941;
+  --ai-gemini: #4285f4;
+  --ai-chatgpt: #10a37f;
+  --ai-claude: #d97757;
+  background-image: none; /* 단일 그라데이션 제거 */
+  background-color: var(--bg);
+  color: var(--text);
+}
+/* 상단 경계선: 그라데이션 제거, 어두운 경계 토큰 */
+body.바 .경계선 {
+  background-image: none;
+  background-color: var(--border);
+}
+/* 패널·카드·이력 영역 */
+body.바 .미니이력 {
+  background-color: var(--surface);
+  border-color: var(--border);
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+body.바 .이력 {
+  background-color: var(--surface);
+  border-color: var(--border);
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+body.바 .확장패널 {
+  border-top-color: var(--border);
+}
+body.바 .토스트 {
+  background-color: var(--surface);
+  border-color: var(--border);
+  border-left-color: var(--danger);
+}
+/* 본문·보조 글자 */
+body.바 .미니질문,
+body.바 .이력항목 {
+  color: var(--text);
+}
+body.바 .미니시간,
+body.바 .이력날짜,
+body.바 .안내,
+body.바 .상태,
+body.바 .상태묶음 {
+  color: var(--text-dim);
+}
+body.바 .실패 {
+  color: var(--danger);
+}
+body.바 .이력항목:hover,
+body.바 .미니항목:hover {
+  background-color: var(--surface-hover);
+}
+body.바 .미니항목 {
+  border-bottom-color: var(--border);
+}
+/* 입력창(음각) — 테두리 두께·형태 유지, 색만 교체 */
+body.바 .작성칸 {
+  background-color: var(--input-bg);
+  border-color: var(--border);
+}
+body.바 .작성칸:focus-within {
+  border-color: var(--accent);
+  /* 기존 포커스 링의 형태(0 0 0 3px)와 알파(0.28), inset 그림자 형태는
+     그대로 두고 RGB 성분만 --accent(34,184,207)로 교체 */
+  box-shadow: 0 0 0 3px rgba(34, 184, 207, 0.28),
+    inset 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+body.바 textarea#질문 {
+  color: var(--text);
+  caret-color: var(--accent);
+}
+body.바 textarea#질문::placeholder {
+  color: var(--text-dim);
+}
+body.바 .프롬프트기호,
+body.바 .깜박커서 {
+  color: var(--accent);
+}
+body.바 .첨부칩 {
+  background-color: var(--surface);
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+body.바 .첨부엑스 {
+  color: var(--text-dim);
+}
+body.바 .첨부엑스:hover {
+  color: var(--danger);
+}
+/* 1차: 전송 — 화면에서 강조색 면은 이 버튼 하나뿐 */
+body.바 .작성칸 button.주요 {
+  background-color: var(--accent);
+  border-color: transparent;
+  color: var(--on-accent);
+}
+body.바 .작성칸 button.주요:hover {
+  background-color: var(--accent-hover);
+  border-color: transparent;
+  color: var(--on-accent);
+}
+body.바 .작성칸 button.주요:active {
+  background-color: var(--accent-active);
+}
+body.바 .작성칸 button.주요:disabled {
+  background-color: var(--btn-2nd-active);
+  color: var(--text-dim);
+}
+/* 2차: 새 대화 · 답변 모으기 */
+body.바 #새대화버튼,
+body.바 #모으기버튼 {
+  background-color: var(--btn-2nd);
+  border-color: transparent;
+  color: var(--text);
+}
+body.바 #새대화버튼:hover,
+body.바 #모으기버튼:hover {
+  background-color: var(--btn-2nd-hover);
+  border-color: transparent;
+  color: var(--text);
+}
+body.바 #새대화버튼:active,
+body.바 #모으기버튼:active {
+  background-color: var(--btn-2nd-active);
+}
+/* 3차: 첨부 · 정렬 · 이력 · 설정 (배경 투명 유지) */
+body.바 #첨부버튼,
+body.바 #창정리버튼,
+body.바 #이력토글,
+body.바 .보조설정 {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--text-dim);
+}
+body.바 #첨부버튼:hover,
+body.바 #창정리버튼:hover,
+body.바 #이력토글:hover,
+body.바 .보조설정:hover {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--text);
+}
+/* 모두 닫기: 평상시 3차, hover 시 글자만 위험색 */
+body.바 #모두닫기버튼 {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--text-dim);
+}
+body.바 #모두닫기버튼:hover {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--danger);
+}
+body.바 #모두닫기버튼.위험 {
+  background-color: var(--btn-2nd);
+  border-color: transparent;
+  color: var(--danger);
+}
+body.바 #모두닫기버튼.위험:hover {
+  background-color: var(--btn-2nd);
+  color: var(--danger);
+}
+/* 탭(제비·참새·하마): 면 채움 금지, 식별색은 하단 밑줄에만.
+   기존 data-사이트 속성(popup.js가 설정)으로 안정적으로 구분. */
+body.바 .전환묶음 {
+  background-color: var(--surface);
+  border-color: var(--border);
+}
+body.바 .전환버튼 {
+  position: relative; /* 밑줄 가상 요소 기준점 (absolute 자식 없음 확인) */
+  background-color: transparent;
+  border-right-color: transparent;
+  color: var(--text-dim);
+}
+body.바 .전환버튼:hover {
+  background-color: transparent;
+  color: var(--text);
+}
+body.바 .전환버튼[data-사이트="gemini"] { --ai-color: var(--ai-gemini); }
+body.바 .전환버튼[data-사이트="chatgpt"] { --ai-color: var(--ai-chatgpt); }
+body.바 .전환버튼[data-사이트="claude"] { --ai-color: var(--ai-claude); }
+body.바 .전환버튼::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  background-color: transparent;
+  pointer-events: none;
+}
+body.바 .전환버튼.눌림 {
+  background-image: none; /* 기존 청록 그라데이션 제거 */
+  background-color: transparent;
+  color: var(--text);
+}
+body.바 .전환버튼.눌림:hover {
+  background-image: none;
+  background-color: transparent;
+  color: var(--text);
+}
+body.바 .전환버튼.눌림::after {
+  height: 3px;
+  background-color: var(--ai-color);
+}
+body.바 .전환버튼:not(.눌림):hover::after {
+  height: 2px;
+  background-color: color-mix(in srgb, var(--ai-color) 35%, transparent);
+}
+/* 입력류(이력 검색·모은 답변) */
+body.바 .확장패널 input,
+body.바 #모으기결과 textarea {
+  background-color: var(--input-bg);
+  border-color: var(--border);
+  color: var(--text);
+}
+/* 링크류는 보조 취급 */
+body.바 a,
+body.바 .이력머리 a {
+  color: var(--text-dim);
+}
+body.바 a:hover,
+body.바 .이력머리 a:hover {
+  color: var(--text);
+}
+body.바 #모으기결과 summary {
+  color: var(--text-dim);
+}
