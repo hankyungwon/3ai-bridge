@@ -562,6 +562,19 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
     return true;
   }
 
+  // content.js가 수집 1건마다 보내는 진단 기록을 쌓습니다 (자동 실측 데이터).
+  // [시각, 사이트, A/B 방식, DOM의 pre·table 유무, 길이, 품질검사 결과]
+  if (메시지.종류 === "수집진단") {
+    (async () => {
+      const { 수집진단 } = await chrome.storage.local.get("수집진단");
+      const 목록 = 수집진단 || [];
+      목록.unshift(메시지.기록);
+      await chrome.storage.local.set({ 수집진단: 목록.slice(0, 200) });
+      응답({ 성공: true });
+    })();
+    return true;
+  }
+
   // 세 사이트의 최신 답변을 한꺼번에 걷어 옵니다 (답변 모으기).
   if (메시지.종류 === "답변수집") {
     (async () => {
