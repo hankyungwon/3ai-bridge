@@ -10,8 +10,10 @@ let 현재설정 = null;
 
 /** 화면을 처음 그립니다. */
 async function 초기화() {
-  // 창 제목에 이름과 버전을 깔끔하게 표시합니다 (뒤의 .0은 생략: 1.8.0 → v1.8)
-  const 버전 = chrome.runtime.getManifest().version.replace(/\.0$/, "");
+  // 창 제목에 이름과 버전을 그대로 표시합니다.
+  // (예전에는 끝의 .0을 떼어 1.18.0이 "v1.18"로 보여, 업데이트가 됐는지
+  //  헷갈렸습니다. 이제 적힌 그대로 보여 줍니다.)
+  const 버전 = chrome.runtime.getManifest().version;
   document.title = `AI 3대장(제비·참새·하마) 카페 v${버전}`;
 
   현재설정 = await 설정불러오기();
