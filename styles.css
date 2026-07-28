@@ -1249,3 +1249,48 @@ body.바 .제어줄 button,
 body.바 .제어줄 .보조설정 {
   vertical-align: middle;
 }
+
+/* ═══════════ v1.17.1 프롬프트 연출 (3대장 합의안) ═══════════
+ * 화면의 '입력' 문구 제거. "포커스 없음 AND 내용 없음"일 때만
+ * ❯ 옆에서 _ 가 숨 쉬듯 깜박이고, 클릭하는 순간 실제 커서에게
+ * 자리를 넘깁니다. 전송 번쩍임 없음. 청록 미사용(명도만 변화).
+ */
+body.바 .깜박커서 {
+  left: 4px; /* 첫 글자가 놓일 자리 */
+  top: 4px;
+  color: var(--text-dim);
+  user-select: none;
+  animation: 숨쉬기 1.2s ease-in-out infinite;
+}
+@keyframes 숨쉬기 {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+/* 포커스를 얻는 즉시 장식은 물러나고 실제 커서만 남습니다 */
+body.바 .작성칸:focus-within .깜박커서 {
+  opacity: 0;
+  animation: none;
+}
+/* 내용이 있으면 (포커스와 무관하게) 장식 커서 없음 */
+body.바 .작성칸.내용있음 .깜박커서 {
+  display: none;
+}
+/* ❯ 는 상태 표시등 — 대기: 흐리게, 내용 있음: 밝게 (명도만, 청록 없음) */
+body.바 .프롬프트기호 {
+  color: var(--text-dim);
+}
+body.바 .작성칸.내용있음 .프롬프트기호 {
+  color: var(--text);
+}
+/* 운영체제의 동작 최소화 설정 존중 */
+@media (prefers-reduced-motion: reduce) {
+  body.바 .깜박커서 {
+    animation: none;
+    opacity: 0.7;
+  }
+}

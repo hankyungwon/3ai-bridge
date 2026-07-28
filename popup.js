@@ -38,9 +38,13 @@ async function 초기화() {
   const 질문칸 = document.getElementById("질문");
   질문칸.focus();
 
-  // 입력칸이 비어 있을 때만 프롬프트 커서를 깜박입니다.
-  const 깜박커서 = document.getElementById("깜박커서");
-  const 커서갱신 = () => 깜박커서.classList.toggle("숨김", 질문칸.value.length > 0);
+  // 상태는 두 조건으로 분리해 관리합니다 (참새 합의안):
+  //  - 포커스 유무 → CSS :focus-within 이 처리 (JS 관여 없음)
+  //  - 내용 유무   → input 이벤트로 .작성칸 에 '내용있음' 클래스만 토글
+  // 장식 커서 _ 는 "포커스 없음 AND 내용 없음"일 때만 CSS 로 나타납니다.
+  const 작성칸 = document.querySelector(".작성칸");
+  const 커서갱신 = () =>
+    작성칸.classList.toggle("내용있음", 질문칸.value.length > 0);
   질문칸.addEventListener("input", 커서갱신);
   커서갱신();
   // 명령바가 다시 앞으로 올 때마다 커서를 자동으로 입력칸 좌상단에 둡니다.
