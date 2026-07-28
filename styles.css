@@ -1102,3 +1102,150 @@ body.바 .이력머리 a:hover {
 body.바 #모으기결과 summary {
   color: var(--text-dim);
 }
+
+/* ═══════════ v1.17 입력 가독성 · 표시 조절 ═══════════ */
+
+/* 동봉 서체 — 사용자가 해당 서체를 고르기 전에는 로드되지 않습니다.
+   (선언만으로는 내려받지 않고, 실제 사용 시점에 로드) */
+@font-face {
+  font-family: "Pretendard";
+  src: url("fonts/Pretendard-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "D2Coding";
+  src: url("fonts/D2Coding-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+}
+
+/* 1-2 입력 글자 체계: 기본 17px · 줄간격 1.6 · 내부 여백 확대 */
+body.바 textarea#질문 {
+  font-size: 17px;
+  line-height: 1.6;
+  padding: 4px 4px 6px;
+}
+body.바 .작성칸 {
+  padding: 12px 14px;
+}
+/* 서체 선택 결과 (입력창에만 적용, AI 답변 창과 무관) */
+body.바 textarea#질문.가독형 {
+  font-family: "Pretendard", "Noto Sans KR", sans-serif;
+}
+body.바 textarea#질문.고정폭 {
+  font-family: "D2Coding", Consolas, monospace;
+}
+/* 깜박이는 커서는 글자 크기를 따라갑니다 */
+body.바 .깜박커서,
+body.바 .프롬프트기호 {
+  font-size: inherit;
+  line-height: 1.6;
+}
+
+/* 2-4 첨부·전송 가로 배치 → 입력 폭 확대 */
+body.바 .작성버튼들 {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 8px;
+}
+body.바 .작성칸 button.주요 {
+  align-self: flex-end;
+}
+
+/* 2-1 표시 조절 바 — 탭 줄과 하나의 패널처럼 보이도록 무채색 플랫 */
+body.바 .표시조절바 {
+  gap: 10px;
+}
+body.바 .조절조 {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+body.바 .조절값 {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  min-width: 34px;
+  text-align: center;
+}
+body.바 button.조절버튼,
+body.바 button.서체버튼 {
+  padding: 5px 9px;
+  font-size: 11.5px;
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--text-dim);
+}
+body.바 button.조절버튼:hover,
+body.바 button.서체버튼:hover,
+body.바 #고대비토글:hover {
+  background-color: transparent;
+  color: var(--text);
+}
+body.바 button.조절버튼:disabled {
+  color: var(--btn-2nd-hover);
+}
+body.바 button.조절버튼:disabled:hover {
+  color: var(--btn-2nd-hover);
+}
+/* 활성 항목에만 청록 (면을 채우지 않고 글자색으로) */
+body.바 button.서체버튼.선택됨,
+body.바 #고대비토글.선택됨 {
+  background-color: transparent;
+  color: var(--accent);
+}
+body.바 #고대비토글 {
+  padding: 5px 9px;
+  font-size: 11.5px;
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--text-dim);
+}
+
+/* 2-3 고대비 — 글자 흰색 + 입력창 한 단계 더 어둡게. 크기·서체와 독립 */
+body.바.고대비 .작성칸 {
+  background-color: #06070a;
+}
+body.바.고대비 textarea#질문 {
+  color: #fff;
+}
+body.바.고대비 .미니질문,
+body.바.고대비 .이력항목 {
+  color: #fff;
+}
+
+/* 서체 로딩 실패 안내 — 입력창 아래, 포커스 이동 없음 */
+.서체안내 {
+  position: fixed;
+  left: 16px;
+  bottom: 10px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 10px;
+  z-index: 60;
+}
+
+/* 3-1 이력 영역 — 글자 한 단계 상향, 항목 사이 여백 확대(구분선 없음) */
+body.바 .미니질문 {
+  font-size: 13px;
+}
+body.바 .미니시간 {
+  font-size: 11.5px;
+  color: #9aa3ad;
+}
+body.바 .미니항목 {
+  padding: 6px 7px;
+  border-bottom-color: transparent;
+}
+body.바 .이력항목 {
+  padding: 6px 6px;
+}
+
+/* 3-2 규격 통일 — 리모컨·탭·서체 버튼의 모서리와 수직 정렬 */
+body.바 .제어줄 button,
+body.바 .제어줄 .보조설정 {
+  vertical-align: middle;
+}

@@ -51,6 +51,201 @@ async function 초기화() {
   setTimeout(창높이맞춤, 150);
 
   await 이력그리기();
+  await 표시설정초기화();
+}
+
+/* ═══════════ 표시 조절 (글자 크기 · 서체 · 고대비) ═══════════
+ * 저장 키를 셋으로 분리해, 하나가 없거나 깨져도 그 키만 기본값으로
+ * 떨어지고 나머지 설정은 그대로 유지되게 합니다.
+ */
+const 글자크기단계 = [15, 17, 19, 21];
+const 기본글자크기 = 17;
+const FONT_LOAD_TIMEOUT_MS = 2000; // 서체 로딩 대기 한도 (조정 가능)
+const 서체정의 = {
+  기본: { css: "", 로드이름: null },
+  가독형: { css: "가독형", 로드이름: "Pretendard" },
+  고정폭: { css: "고정폭", 로드이름: "D2Coding" },
+};
+let 현재서체 = "기본";
+let 서체요청토큰 = 0; // 연속 클릭·늦은 완료를 가려내는 표식
+
+/** 키 하나만 읽어 옵니다. 없거나 형식이 어긋나면 기본값. */
+async function 표시설정읽기(키, 기본값, 검증) {
+  try {
+    const 저장 = await chrome.storage.local.get(키);
+    const 값 = 저장[키];
+    return 검증(값) ? 값 : 기본값;
+  } catch (e) {
+    return 기본값;
+  }
+}
+
+async function 글자크기적용(px, 저장할까 = true) {
+  const 질문칸 = document.getElementById("질문");
+  질문칸.style.fontSize = px + "px";
+  document.getElementById("글자크기표시").textContent = px + "px";
+  document.getElementById("글자작게").disabled = px <= 글자크기단계[0];
+  document.getElementById("글자크게").disabled =
+    px >= 글자크기단계[글자크기단계.length - 1];
+  if (저장할까) {
+    try {
+      await chrome.storage.local.set({ inputFontSize: px });
+    } catch (e) {
+      /* 저장 실패는 표시에 영향 주지 않음 */
+    }
+  }
+}
+
+function 서체버튼표시(이름) {
+  document.querySelectorAll(".서체버튼").forEach((b) => {
+    b.classList.toggle("선택됨", b.dataset.서체 === 이름);
+  });
+}
+
+/** 입력창에 서체 클래스만 갈아 끼웁니다 (요소 재생성 없음). */
+function 서체클래스적용(이름) {
+  const 질문칸 = document.getElementById("질문");
+  질문칸.classList.remove("가독형", "고정폭");
+  const css = (서체정의[이름] || {}).css;
+  if (css) 질문칸.classList.add(css);
+  현재서체 = 이름;
+}
+
+function 서체안내표시(글) {
+  const 상자 = document.getElementById("서체안내");
+  상자.textContent = 글;
+  상자.classList.remove("숨김");
+  setTimeout(() => 상자.classList.add("숨김"), 4000); // 자동 소멸, 포커스 이동 없음
+}
+
+/**
+ * 서체 전환 — 지시서의 순서를 그대로 따릅니다.
+ * 선로드 방식이므로 font-display 에 의존하지 않습니다.
+ */
+async function 서체전환(이름) {
+  const 내토큰 = ++서체요청토큰; // 1. 토큰 증가·보관
+  const 질문칸 = document.getElementById("질문");
+  const 이전서체 = 현재서체;
+
+  // 2. 커서·선택 영역·스크롤·포커스 보존
+  const 상태 = {
+    start: 질문칸.selectionStart,
+    end: 질문칸.selectionEnd,
+    scrollTop: 질문칸.scrollTop,
+    포커스: document.activeElement === 질문칸,
+  };
+
+  서체버튼표시(이름); // 눌린 느낌을 먼저 (실패 시 원복)
+
+  const 정의 = 서체정의[이름];
+  if (정의 && 정의.로드이름) {
+    try {
+      // 3. 실제 로드 + 타임아웃
+      const 크기 = 질문칸.style.fontSize || 기본글자크기 + "px";
+      const 로딩 = document.fonts.load(
+        `${크기} "${정의.로드이름}"`,
+        "가나다 ABC 123 → {} []"
+      );
+      const 결과 = await Promise.race([
+        로딩,
+        new Promise((_, 거절) =>
+          setTimeout(() => 거절(new Error("timeout")), FONT_LOAD_TIMEOUT_MS)
+        ),
+      ]);
+      // 4. 반환 배열에 대상 FontFace 가 실제로 있는지 확인
+      const 있음 =
+        Array.isArray(결과) &&
+        결과.some((f) => f && f.family && f.family.includes(정의.로드이름));
+      if (!있음) throw new Error("not-loaded");
+    } catch (e) {
+      // 7. 실패·타임아웃 → 기존 서체 유지, 버튼 원복, 안내, 저장 안 함
+      if (내토큰 === 서체요청토큰) {
+        서체버튼표시(이전서체);
+        서체안내표시("서체를 불러오지 못했습니다");
+      }
+      return;
+    }
+  }
+
+  // 6. 늦게 끝난 이전 요청이면 결과를 버립니다 (저장도 하지 않음)
+  if (내토큰 !== 서체요청토큰) return;
+
+  // 5. 기존 요소의 CSS 만 변경 → 다음 프레임에서 상태 복원 → 그 뒤 저장
+  서체클래스적용(이름);
+  requestAnimationFrame(() => {
+    질문칸.scrollTop = 상태.scrollTop;
+    if (상태.포커스) {
+      질문칸.focus();
+      try {
+        질문칸.setSelectionRange(상태.start, 상태.end);
+      } catch (e) {
+        /* 값이 범위를 벗어나면 무시 */
+      }
+    }
+  });
+  try {
+    await chrome.storage.local.set({ inputFontFamily: 이름 });
+  } catch (e) {
+    /* 저장 실패는 표시에 영향 주지 않음 */
+  }
+}
+
+async function 고대비적용(켬, 저장할까 = true) {
+  document.body.classList.toggle("고대비", !!켬);
+  document.getElementById("고대비토글").classList.toggle("선택됨", !!켬);
+  if (저장할까) {
+    try {
+      await chrome.storage.local.set({ highContrast: !!켬 });
+    } catch (e) {
+      /* 무시 */
+    }
+  }
+}
+
+/** 세 키를 각각 독립적으로 읽어 적용합니다. */
+async function 표시설정초기화() {
+  const 크기 = await 표시설정읽기(
+    "inputFontSize",
+    기본글자크기,
+    (v) => 글자크기단계.includes(v)
+  );
+  await 글자크기적용(크기, false);
+
+  const 서체 = await 표시설정읽기(
+    "inputFontFamily",
+    "기본",
+    (v) => typeof v === "string" && Object.prototype.hasOwnProperty.call(서체정의, v)
+  );
+  // 저장돼 있던 서체는 조용히 선로드한 뒤 적용 (실패하면 기본 유지)
+  if (서체 !== "기본") {
+    서체전환(서체);
+  } else {
+    서체버튼표시("기본");
+  }
+
+  const 고대비 = await 표시설정읽기(
+    "highContrast",
+    false,
+    (v) => typeof v === "boolean"
+  );
+  await 고대비적용(고대비, false);
+
+  document.getElementById("글자작게").addEventListener("click", async () => {
+    const 지금 = parseInt(document.getElementById("글자크기표시").textContent, 10);
+    const i = 글자크기단계.indexOf(지금);
+    if (i > 0) await 글자크기적용(글자크기단계[i - 1]);
+  });
+  document.getElementById("글자크게").addEventListener("click", async () => {
+    const 지금 = parseInt(document.getElementById("글자크기표시").textContent, 10);
+    const i = 글자크기단계.indexOf(지금);
+    if (i >= 0 && i < 글자크기단계.length - 1) await 글자크기적용(글자크기단계[i + 1]);
+  });
+  document.querySelectorAll(".서체버튼").forEach((b) => {
+    b.addEventListener("click", () => 서체전환(b.dataset.서체));
+  });
+  document.getElementById("고대비토글").addEventListener("click", () => {
+    고대비적용(!document.body.classList.contains("고대비"));
+  });
 }
 
 /** 명령바를 화면 하단 제자리에 다시 붙입니다(내용이 잘리는 것 방지). */
