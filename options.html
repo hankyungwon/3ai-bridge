@@ -33,6 +33,21 @@
       >
     </div>
 
+    <h2>주입 순서 (진단 실험용)</h2>
+    <p class="설명">
+      질문을 세 사이트에 넣는 <b>순서</b>만 바꿉니다. 넣는 방식 자체는 그대로입니다.
+      장문 잘림이 <b>사이트</b>를 따라가는지 <b>순번</b>을 따라가는지 가려내기 위한
+      실험 스위치이며, 기본값은 지금까지와 똑같습니다.
+    </p>
+    <div class="줄">
+      <select id="주입순서">
+        <option value="">기본 (창 순서 그대로)</option>
+        <option value="gemini,chatgpt,claude">제비 → 참새 → 하마</option>
+        <option value="claude,chatgpt,gemini">하마 → 참새 → 제비</option>
+        <option value="chatgpt,gemini,claude">참새 → 제비 → 하마</option>
+      </select>
+    </div>
+
     <h2>크롬 시작</h2>
     <p class="설명">
       켜 두면 크롬을 실행할 때 3대장 창과 명령바가 자동으로 열립니다.

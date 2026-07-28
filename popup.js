@@ -588,6 +588,18 @@ async function 전송() {
   const 질문 = 질문칸.value.trim();
   if (!질문 && !첨부목록.length) return; // 글도 첨부도 없으면 보낼 게 없음
 
+  // [진단 A] 어떤 가공보다 먼저, 컨트롤러 원문을 그대로 캡처합니다.
+  const sendId = globalThis.진단아이디 ? globalThis.진단아이디() : "";
+  try {
+    globalThis.진단기록 &&
+      globalThis.진단기록(
+        { sendId, stage: "A", site: "controller", position: 0, note: "전송 버튼 직후 원문" },
+        질문칸.value
+      );
+  } catch (e) {
+    /* 진단 실패는 전송을 막지 않습니다 */
+  }
+
   const 버튼 = document.getElementById("전송버튼");
   버튼.disabled = true;
 
@@ -609,6 +621,7 @@ async function 전송() {
   try {
     const 응답 = await chrome.runtime.sendMessage({
       종류: "동시질문",
+      sendId, // [진단 전용] 로그 묶음 꼬리표
       질문,
       첨부: 보낼첨부.map((f) => ({ 이름: f.이름, 종류: f.종류, 자료: f.자료 })),
       프로필ID: 프로필 ? 프로필.id : "표준",
@@ -616,6 +629,7 @@ async function 전송() {
       사이트사용: { claude: true, chatgpt: true, gemini: true },
     });
     상태표시((응답 && 응답.결과들) || []);
+    진단요약출력(sendId); // [진단 전용] 콘솔 요약 (기다리지 않음)
   } catch (e) {
     // 백그라운드와의 연결이 끊긴 드문 경우에도 안내는 남깁니다.
     토스트([글줄("전송 결과를 받지 못했습니다. 세 AI 창을 직접 확인하세요.", "실패")]);
@@ -794,3 +808,49 @@ document.getElementById("설정열기").addEventListener("click", (e) => {
 // ── v2 후보 (이번 버전에서는 만들지 않음) ──
 // - 세 답변을 모아 4번째 창에서 비교 요약
 // - 프로필 단축키 (Alt+1 / Alt+2 / Alt+3)
+
+
+/* ─────────────── [진단 전용] 잘림 추적 로그 ───────────────
+ * 관찰만 합니다. 전송 동작에는 어떤 영향도 주지 않습니다.
+ */
+
+/** 이번 전송의 계측 레코드를 콘솔에 표로 출력합니다. */
+function 진단요약출력(sendId) {
+  setTimeout(async () => {
+    try {
+      const { diagLogs } = await chrome.storage.local.get("diagLogs");
+      const 줄들 = (diagLogs || [])
+        .filter((r) => r.sendId === sendId)
+        .map((r) => ({
+          stage: r.stage,
+          site: r.site,
+          position: r.position,
+          length: r.length,
+          bytes: r.byteLength,
+          NL: r.newlineCount,
+          sha8: (r.sha256 || "").slice(0, 8),
+          note: r.note,
+        }));
+      if (줄들.length) console.table(줄들);
+    } catch (e) {
+      /* 무시 */
+    }
+  }, 6000);
+}
+
+document.getElementById("진단내보내기").addEventListener("click", async () => {
+  try {
+    const { diagLogs } = await chrome.storage.local.get("diagLogs");
+    const 파일 = new Blob([JSON.stringify(diagLogs || [], null, 2)], {
+      type: "application/json",
+    });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(파일);
+    a.download = "3ai-diag-logs.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    토스트([글줄(`진단 로그 ${(diagLogs || []).length}줄을 저장했습니다.`, "성공")], 4000);
+  } catch (e) {
+    토스트([글줄("진단 로그를 저장하지 못했습니다.", "실패")]);
+  }
+});

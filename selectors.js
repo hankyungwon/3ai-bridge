@@ -65,6 +65,14 @@ const BRIDGE_SELECTORS = {
     ],
     // 첨부를 넣는 방식(순서대로 시도): input=숨겨진 파일 업로드 칸에 직접 주입,
     // paste=붙여넣기 이벤트, drop=끌어다 놓기 이벤트
+    // [진단 전용] 내가 보낸 말풍선(사용자 메시지) — 잘림 여부 확인용
+    사용자말풍선: [
+      'div[data-testid="user-message"]',
+      ".font-user-message",
+      '[data-message-author-role="user"]',
+    ],
+    // [진단 전용] 접힌 긴 메시지를 펼치는 버튼 후보
+    펼치기버튼: ['button[aria-expanded="false"]'],
     첨부방식: ["input", "drop", "paste"],
     파일입력: [
       'input[data-testid="file-upload"]',
@@ -115,6 +123,12 @@ const BRIDGE_SELECTORS = {
       '[data-message-author-role="assistant"]',
       'div[data-testid^="conversation-turn"] .markdown',
     ],
+    // [진단 전용] 내가 보낸 말풍선(사용자 메시지) — 잘림 여부 확인용
+    사용자말풍선: [
+      '[data-message-author-role="user"]',
+      'div[data-testid^="conversation-turn"] .whitespace-pre-wrap',
+    ],
+    펼치기버튼: ['button[aria-expanded="false"]'],
     첨부방식: ["paste", "input"],
     파일입력: ['input[type="file"][multiple]', 'input[type="file"]'],
   },
@@ -161,6 +175,21 @@ const BRIDGE_SELECTORS = {
       "message-content",
       ".model-response-text",
       "model-response",
+    ],
+    // [진단 전용] 내가 보낸 말풍선(사용자 메시지) — 잘림 여부 확인용.
+    // 제미나이는 긴 질문을 접어서 보여 주는 경우가 있어 펼치기 버튼도 함께 둡니다.
+    사용자말풍선: [
+      "user-query-content .query-text",
+      "user-query .query-text",
+      "user-query-content",
+      ".user-query-bubble-with-background",
+    ],
+    펼치기버튼: [
+      'button[aria-label*="더보기"]',
+      'button[aria-label*="더 보기"]',
+      'button[aria-label*="expand"]',
+      ".expand-button",
+      'button[aria-expanded="false"]',
     ],
     첨부방식: ["paste", "input", "drop"],
     파일입력: ['input[type="file"]'],

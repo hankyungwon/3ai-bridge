@@ -4,7 +4,7 @@
  * - 팝업에서 온 질문을 각 사이트 탭으로 전달하고 결과를 모아 돌려줍니다.
  */
 
-importScripts("selectors.js", "config.js");
+importScripts("selectors.js", "config.js", "diag.js");
 
 /* ────────────────────────────── 창 열기·배치 ────────────────────────────── */
 
@@ -452,14 +452,14 @@ async function 탭에보내기(탭ID, 메시지) {
   } catch (e) {
     await chrome.scripting.executeScript({
       target: { tabId: 탭ID },
-      files: ["selectors.js", "content.js"],
+      files: ["selectors.js", "diag.js", "content.js"],
     });
     return await chrome.tabs.sendMessage(탭ID, 메시지);
   }
 }
 
 /** 한 사이트(탭)에 질문을 보냅니다. 결과 객체를 반환합니다. */
-async function 사이트에전송(사이트키, 탭ID, 본문, 희망모델, 첨부) {
+async function 사이트에전송(사이트키, 탭ID, 본문, 희망모델, 첨부, 진단) {
   const 이름 = BRIDGE_SELECTORS[사이트키].이름;
   try {
     if (!탭ID) {
@@ -472,6 +472,9 @@ async function 사이트에전송(사이트키, 탭ID, 본문, 희망모델, 첨
       본문,
       희망모델,
       첨부: 첨부 || [],
+      // [진단 전용] 로그를 묶기 위한 꼬리표 — 동작에는 쓰이지 않습니다.
+      sendId: (진단 && 진단.sendId) || "",
+      position: (진단 && 진단.position) || 0,
     });
     return Object.assign({ 사이트: 사이트키, 이름 }, 결과 || {});
   } catch (e) {
@@ -529,6 +532,14 @@ function 본문만들기(프로필, 사이트키, 질문) {
 }
 
 chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
+  // [진단 전용] 명령바·콘텐츠 스크립트가 보낸 계측 레코드를 모읍니다.
+  if (메시지.종류 === "진단로그") {
+    진단직접저장(메시지.레코드)
+      .catch(() => {})
+      .then(() => 응답({ 성공: true }));
+    return true;
+  }
+
   // 겹침 모드에서 마우스가 어떤 AI 창 위에 잠시 머물면
   // 그 창을 앞으로 가져옵니다 (content.js가 보내는 신호).
   if (메시지.종류 === "호버포커스" && 발신.tab) {
@@ -664,7 +675,13 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
         설정.프로필[0] ||
         null;
 
-      const 대상 = 설정.창순서.filter((키) => 메시지.사이트사용[키]);
+      // 주입 순서: 설정에 실험용 순서가 지정돼 있으면 그것을, 없으면
+      // 기존과 똑같이 창순서를 씁니다(기본값 = 현재 동작 그대로).
+      const 순서기준 =
+        Array.isArray(설정.주입순서) && 설정.주입순서.length === 3
+          ? 설정.주입순서
+          : 설정.창순서;
+      const 대상 = 순서기준.filter((키) => 메시지.사이트사용[키]);
 
       // 답변 진행 상태를 초기화하고, 자동 보관을 위해 질문을 기억해 둡니다.
       const 초기상태 = {};
@@ -690,13 +707,14 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
 
       // 세 사이트에 동시에(병렬로) 보냅니다 — 한 곳이 실패해도 나머지는 진행됩니다.
       const 결과들 = await Promise.all(
-        대상.map((키) =>
+        대상.map((키, 순번) =>
           사이트에전송(
             키,
             탭지도[키],
             메시지.질문 ? 본문만들기(프로필, 키, 메시지.질문) : "",
             프로필 ? (프로필.모델 || {})[키] || "" : "",
-            메시지.첨부
+            메시지.첨부,
+            { sendId: 메시지.sendId || "", position: 순번 + 1 }
           )
         )
       );
