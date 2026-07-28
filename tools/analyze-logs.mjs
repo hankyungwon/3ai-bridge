@@ -130,6 +130,14 @@ for (const [sendId, 목록] of 묶음) {
       `  · ${site} (순번 ${pos}) — ${판정}` +
         (접두어길이 > 0 ? ` [접두어 ${접두어길이}자]` : "")
     );
+    const 포커스표 = [B, C]
+      .map((r, i) =>
+        r
+          ? `${"BC"[i]}: hasFocus=${r.hasFocus} activeEl=${r.activeElTag || "?"}`
+          : `${"BC"[i]}: 없음`
+      )
+      .join(" | ");
+    console.log(`    포커스: ${포커스표}`);
     const 길이표 = [B, C, D]
       .map((r, i) => (r ? `${"BCD"[i]}=${r.length}자` : `${"BCD"[i]}=없음`))
       .join(" / ");

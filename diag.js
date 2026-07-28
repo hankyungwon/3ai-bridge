@@ -25,6 +25,28 @@
       .trim();
   }
 
+  /** [진단 전용] 이 문서가 OS 포커스를 갖고 있는가 (문서가 없으면 null) */
+  function 문서포커스() {
+    try {
+      return typeof document === "undefined" ? null : document.hasFocus();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** [진단 전용] 지금 활성 요소가 무엇인가 (태그 + class 앞 40자) */
+  function 활성요소표시() {
+    try {
+      if (typeof document === "undefined") return "";
+      const el = document.activeElement;
+      if (!el) return "(없음)";
+      const cls = String(el.className || "").slice(0, 40);
+      return el.tagName + (cls ? "." + cls : "");
+    } catch (e) {
+      return "";
+    }
+  }
+
   function 바이트수(글) {
     try {
       return new TextEncoder().encode(글).length;
@@ -68,6 +90,10 @@
         newlineCount: (글.match(/\n/g) || []).length,
         first64: 글.slice(0, 64),
         last64: 글.slice(-64),
+        // [포커스 실측] execCommand 는 선택 영역에 의존하므로, 캡처 순간의
+        // 포커스 상태를 그대로 남깁니다. 읽기만 하므로 타이밍 영향 없음.
+        hasFocus: 문서포커스(),
+        activeElTag: 활성요소표시(),
         sha256: "",
         sha256Norm: "",
         note: 정보.note || "",
