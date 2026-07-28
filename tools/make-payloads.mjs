@@ -19,8 +19,20 @@
 
 import { readFileSync, writeFileSync } from "node:fs";
 
-const 목표 = parseInt(process.argv[2] || "4000", 10);
-const 원문파일 = process.argv[3];
+// 인수가 없으면 payload-P1.txt 를 기준으로 삼습니다(원문 고정 원칙).
+const 원문파일 = process.argv[3] || "payload-P1.txt";
+let 기준원문 = null;
+try {
+  기준원문 = readFileSync(원문파일, "utf8");
+} catch (e) {
+  기준원문 = null;
+}
+// 길이는 P1 이 있으면 P1 길이로 맞춥니다. 없으면 인수, 그것도 없으면 4000.
+const 목표 = process.argv[2]
+  ? parseInt(process.argv[2], 10)
+  : 기준원문
+  ? 기준원문.length
+  : 4000;
 
 // 특수문자(백틱·달러·역슬래시·별표 등)를 일부러 배제한 한글 산문 재료
 const 낱말 = [
@@ -62,15 +74,19 @@ const 요약 = (이름, 글) =>
 console.log(요약("P2 (개행 5개)", P2));
 console.log(요약("P3 (개행 많음)", P3));
 
-if (원문파일) {
-  let P1 = readFileSync(원문파일, "utf8");
-  if (P1.length > 목표) P1 = P1.slice(0, 목표);
+if (기준원문) {
+  const P1 = 기준원문.length > 목표 ? 기준원문.slice(0, 목표) : 기준원문;
   writeFileSync("payload-P1.txt", P1);
-  console.log(요약("P1 (실패 원문)", P1));
+  console.log(요약(`P1 (${원문파일})`, P1));
 } else {
-  console.log("P1: 실패했던 원문을 파일로 주면 길이를 맞춰 함께 만듭니다.");
+  console.log(
+    `P1: ${원문파일} 이 없습니다. 실패했던 원문을 payload-P1.txt 로 저장한 뒤 다시 실행하면 길이를 맞춰 줍니다.`
+  );
 }
 
 console.log(
   "\n세 파일을 각각 명령바에 붙여넣어 3회씩 보낸 뒤, 진단 로그를 내보내십시오."
+);
+console.log(
+  "규칙: 9회 전부 같은 파일에서 복사 · 시행 사이 응답 완료 대기 · 매 시행 새 대화 · 무거운 프로그램 종료"
 );
