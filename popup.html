@@ -18,9 +18,11 @@
         <div class="작성본문">
           <div id="첨부줄" class="첨부줄 숨김"></div>
           <div class="입력겹침">
-            <textarea id="질문" placeholder="입력"></textarea>
-            <!-- 비어 있을 때만 보이는 깜박이는 커서 (프롬프트 느낌) -->
-            <span id="깜박커서" class="깜박커서">▌</span>
+            <!-- 화면의 안내 문구는 없애되, 스크린리더용 이름표는 남깁니다 -->
+            <textarea id="질문" placeholder="" aria-label="프롬프트 입력"></textarea>
+            <!-- 장식 커서 _ : "포커스 없음 AND 내용 없음"일 때만 숨 쉬듯 나타나고,
+                 포커스를 얻는 즉시 실제 브라우저 커서에게 자리를 넘깁니다 (CSS 처리) -->
+            <span id="깜박커서" class="깜박커서" aria-hidden="true">_</span>
           </div>
         </div>
         <div class="작성버튼들">
