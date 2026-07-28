@@ -109,6 +109,8 @@ document.getElementById("저장").addEventListener("click", async () => {
   // [진단 실험용] 주입 순서 — 빈 값이면 창순서를 그대로 씁니다.
   const 순서값 = document.getElementById("주입순서").value;
   설정.주입순서 = 순서값 ? 순서값.split(",") : [];
+  // [진단 실험용] 단독 실행 대상 — 빈 값이면 세 곳 모두(기존 동작)
+  설정.단독대상 = document.getElementById("단독대상").value;
   설정.호버포커스 = document.getElementById("호버포커스").checked;
   설정.시작시자동열기 = document.getElementById("시작시자동열기").checked;
   // 같은 사이트가 두 번 선택된 경우 빠진 사이트를 자동으로 채워 넣습니다.
@@ -149,6 +151,7 @@ function 선택프로필그리기() {
 function 배치옵션그리기() {
   document.getElementById("배치모드").value = 설정.배치모드 || "auto";
   document.getElementById("주입순서").value = (설정.주입순서 || []).join(",");
+  document.getElementById("단독대상").value = 설정.단독대상 || "";
   document.getElementById("호버포커스").checked = 설정.호버포커스 !== false;
   document.getElementById("시작시자동열기").checked =
     설정.시작시자동열기 !== false;

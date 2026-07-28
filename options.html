@@ -48,6 +48,21 @@
       </select>
     </div>
 
+    <h2>단독 실행 대조 (진단 실험용)</h2>
+    <p class="설명">
+      한 곳에만 질문을 보냅니다. 세 창 동시 실행 때만 잘리는지(경합·포커스 문제)
+      혼자일 때도 잘리는지(에디터 자체 문제)를 한 번에 가릅니다.
+      <b>진단이 끝나면 반드시 "세 곳 모두"로 되돌리십시오.</b>
+    </p>
+    <div class="줄">
+      <select id="단독대상">
+        <option value="">세 곳 모두 (기본)</option>
+        <option value="gemini">제비(Gemini)만</option>
+        <option value="chatgpt">참새(ChatGPT)만</option>
+        <option value="claude">하마(Claude)만</option>
+      </select>
+    </div>
+
     <h2>크롬 시작</h2>
     <p class="설명">
       켜 두면 크롬을 실행할 때 3대장 창과 명령바가 자동으로 열립니다.
