@@ -366,6 +366,15 @@ function 상태표시(결과들) {
         )
       );
     }
+    // 주입 안전망(v1.18): 입력창에 글이 다 안 들어간 경우를 알립니다.
+    if (r.주입불완전) {
+      줄들.push(
+        글줄(
+          `⚠ ${r.이름 || 사이트이름[r.사이트]} — 주입 불완전(원문 ${r.원문길이}자/입력 ${r.입력길이}자), 보내기 전 확인 필요`,
+          "실패"
+        )
+      );
+    }
   }
   if (줄들.length) {
     줄들.push(글줄("계속 실패하면 저장소의 수리요청.md 를 참고하세요."));
@@ -397,6 +406,21 @@ async function 이력에추가(질문, 프로필이름) {
     즐겨찾기: false,
   });
   await chrome.storage.local.set({ 질문이력: 이력.slice(0, 500) });
+  await 이력그리기();
+  return 이력[0].id;
+}
+
+/**
+ * 방금 보낸 질문의 이력 항목에 경고를 덧붙입니다 (v1.18 주입 안전망).
+ * 예: "주입 불완전(원문 5,120자/입력 3,004자)" — 나중에 되짚어 볼 수 있게 남깁니다.
+ */
+async function 이력에경고추가(항목id, 경고들) {
+  if (!항목id || !경고들.length) return;
+  const 이력 = await 이력불러오기();
+  const 대상 = 이력.find((h) => h.id === 항목id);
+  if (!대상) return;
+  대상.경고 = (대상.경고 || []).concat(경고들);
+  await chrome.storage.local.set({ 질문이력: 이력 });
   await 이력그리기();
 }
 
@@ -438,6 +462,15 @@ function 이력항목만들기(항목) {
   글.textContent = ` [${시각글}·${항목.프로필}] ${항목.질문}`;
   글.title = "클릭하면 입력칸으로 불러옵니다";
   줄.appendChild(글);
+
+  // 주입 안전망이 남긴 경고가 있으면 같은 줄에 표시합니다.
+  if (항목.경고 && 항목.경고.length) {
+    const 경고 = document.createElement("span");
+    경고.className = "실패";
+    경고.textContent = " ⚠ " + 항목.경고.join(" · ");
+    경고.title = "보낸 글이 입력창에 다 들어가지 않았습니다";
+    줄.appendChild(경고);
+  }
 
   줄.addEventListener("click", () => {
     const 질문칸 = document.getElementById("질문");
@@ -492,6 +525,7 @@ async function 미니이력그리기() {
 
 async function 이력그리기() {
   await 미니이력그리기();
+  await 수집진단그리기();
   const 상자 = document.getElementById("이력");
   const 검색어 = document.getElementById("이력검색").value.trim().toLowerCase();
   let 이력 = await 이력불러오기();
@@ -533,6 +567,42 @@ async function 이력그리기() {
   }
 }
 
+/* ───────────── 수집 진단 기록 (자동 실측) ─────────────
+ * 수집 1건마다 content.js 가 남긴 기록을 그대로 보여 줍니다.
+ * 사이트별로 A안(사이트 복사 버튼)이 실제로 원본 마크다운을 주는지
+ * 쓰는 동안 저절로 쌓이는 실측 자료입니다.
+ */
+async function 수집진단그리기() {
+  const 상자 = document.getElementById("수집진단");
+  if (!상자) return;
+  const { 수집진단 } = await chrome.storage.local.get("수집진단");
+  const 목록 = (수집진단 || []).slice(0, 30);
+  상자.innerHTML = "";
+  if (!목록.length) return;
+
+  const 펼침 = document.createElement("details");
+  const 제목 = document.createElement("summary");
+  제목.textContent = `수집 진단 기록 (최근 ${목록.length}건)`;
+  펼침.appendChild(제목);
+  for (const 기록 of 목록) {
+    const 줄 = document.createElement("div");
+    줄.className = "이력항목";
+    const 때 = new Date(기록.시각);
+    const 시각글 = `${String(때.getHours()).padStart(2, "0")}:${String(때.getMinutes()).padStart(2, "0")}`;
+    const 구조 =
+      (기록.pre있음 ? "코드블록" : "") +
+      (기록.pre있음 && 기록.table있음 ? "+" : "") +
+      (기록.table있음 ? "표" : "") || "없음";
+    줄.textContent =
+      `[${시각글}] ${기록.사이트} · ${기록.방식}안 · 구조 ${구조} · ` +
+      `${기록.길이}자 · ${기록.품질통과 ? "품질 통과" : "품질 실패"}` +
+      (기록.품질사유 ? ` (${기록.품질사유})` : "");
+    if (!기록.품질통과) 줄.classList.add("실패");
+    펼침.appendChild(줄);
+  }
+  상자.appendChild(펼침);
+}
+
 /* ───────────── 답변 모으기 ─────────────
  * 세 사이트의 최신 답변을 걷어 와 하나의 문서로 만들어
  * 클립보드에 복사하고, 아래에 펼쳐볼 수 있게 보여줍니다.
@@ -546,13 +616,17 @@ async function 답변모으기() {
     const 결과 = (응답 && 응답.결과) || {};
     let 문서 = "";
     const 요약 = [];
+    const 클립보드경고들 = [];
     for (const [키, r] of Object.entries(결과)) {
       if (r.성공) {
         문서 += `## ${r.이름}\n\n${r.본문}\n\n---\n\n`;
-        요약.push(`✅${r.이름}`);
+        // 어느 방식으로 걷었는지(A=사이트 복사 버튼, B=HTML 변환)를 함께 보여줍니다.
+        const 방식 = r.진단 ? `(${r.진단.방식}안)` : "";
+        요약.push(`✅${r.이름}${방식}`);
       } else {
         요약.push(`❌${r.이름}(${r.사유 || "실패"})`);
       }
+      if (r.클립보드경고) 클립보드경고들.push(`${r.이름} — ${r.클립보드경고}`);
     }
 
     const 결과상자 = document.getElementById("모으기결과");
@@ -574,8 +648,13 @@ async function 답변모으기() {
       펼침.appendChild(본문칸);
       결과상자.appendChild(펼침);
     }
+    await 수집진단그리기();
     const 실패요약 = 요약.filter((글) => 글.startsWith("❌"));
-    if (실패요약.length) 토스트(실패요약.map((글) => 글줄(글, "실패")));
+    // 클립보드 복구에 실패했으면 조용히 넘기지 않고 반드시 한 번 알립니다.
+    const 알림줄 = 실패요약
+      .map((글) => 글줄(글, "실패"))
+      .concat(클립보드경고들.map((글) => 글줄("⚠ " + 글, "실패")));
+    if (알림줄.length) 토스트(알림줄, 8000);
   } finally {
     버튼.disabled = false;
     버튼.textContent = "답변 모으기";
@@ -599,8 +678,9 @@ async function 전송() {
   const 보낼첨부 = 첨부목록;
   첨부목록 = [];
   첨부그리기();
+  let 이력항목id = null;
   if (질문) {
-    await 이력에추가(
+    이력항목id = await 이력에추가(
       보낼첨부.length ? `[📎${보낼첨부.length}] ${질문}` : 질문,
       프로필 ? 프로필.이름 : "표준"
     );
@@ -615,7 +695,18 @@ async function 전송() {
       // 명령바에서 대상 선택을 없앴으므로 항상 세 곳 모두에 보냅니다.
       사이트사용: { claude: true, chatgpt: true, gemini: true },
     });
-    상태표시((응답 && 응답.결과들) || []);
+    const 결과들 = (응답 && 응답.결과들) || [];
+    상태표시(결과들);
+    // 주입 안전망이 걸린 곳은 이력에도 남깁니다 (나중에 되짚어 볼 수 있게).
+    await 이력에경고추가(
+      이력항목id,
+      결과들
+        .filter((r) => r.주입불완전)
+        .map(
+          (r) =>
+            `${r.이름 || 사이트이름[r.사이트]} 주입 불완전(원문 ${r.원문길이}자/입력 ${r.입력길이}자)`
+        )
+    );
   } catch (e) {
     // 백그라운드와의 연결이 끊긴 드문 경우에도 안내는 남깁니다.
     토스트([글줄("전송 결과를 받지 못했습니다. 세 AI 창을 직접 확인하세요.", "실패")]);

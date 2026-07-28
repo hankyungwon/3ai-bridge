@@ -39,6 +39,9 @@
    * 입력란에 글자를 넣습니다.
    * 사이트들이 React/Angular 를 쓰기 때문에 값만 바꾸면 인식하지 못합니다.
    * 그래서 실제 타이핑과 같은 방식(execCommand insertText)을 사용합니다.
+   *
+   * ※ 이 함수는 "넣기"만 합니다. 제대로 다 들어갔는지 확인·재시도는
+   *   아래 안전주입()이 맡습니다 (v1.18 주입 안전망).
    */
   async function 글자넣기(입력란, 본문) {
     입력란.focus();
@@ -82,6 +85,137 @@
   function 입력란글자(요소) {
     if (!요소) return "";
     return (요소.value ?? 요소.innerText ?? "").trim();
+  }
+
+  /* ─────────────── 주입 안전망 (v1.18) ───────────────
+   * 예전에 긴 마크다운을 제미나이 입력창(Quill)에 넣을 때 뒷부분이
+   * 잘리는 일이 있었는데, 코드가 "글자가 하나라도 들어갔는지"만 보고
+   * 성공으로 처리해 조용히 넘어갔습니다. 이제 원문과 입력창 내용의
+   * 길이를 대조하고, 어긋나면 한 번 자동으로 다시 넣습니다.
+   * 이 검사는 세 사이트 공통입니다(제미나이 전용 아님).
+   */
+
+  /** 입력란 내용을 다듬지 않고 그대로 읽습니다(길이 대조용). */
+  function 입력란원문(요소) {
+    if (!요소) return "";
+    return 요소.value ?? 요소.innerText ?? "";
+  }
+
+  /**
+   * 대조하기 전에 양쪽을 같은 모양으로 맞춥니다.
+   *  - 줄바꿈 표기 통일 (\r\n, \r → \n)
+   *  - 에디터가 넣는 줄바꿈 없는 공백(NBSP, U+00A0)을 보통 공백으로
+   *  - 에디터가 문단 끝에 자동으로 붙이는 후행 공백·개행 제거
+   */
+  function 대조용정규화(글) {
+    return (글 || "")
+      .replace(/\r\n?/g, "\n")
+      .replace(/\u00a0/g, " ")
+      .replace(/[\u200b\ufeff]/g, "") // 에디터가 심는 보이지 않는 표식 제거
+      .replace(/[ \t\n]+$/, "");
+  }
+
+  /**
+   * 원문과 입력창 내용을 대조합니다.
+   * 원칙은 정확 일치입니다. 다만 contenteditable 에디터는 줄 끝에
+   * 눈에 보이지 않는 한두 글자(문단 표식 등)를 더하거나 지우는 일이 있어,
+   * 정규화 후에도 남는 ±2자 차이는 허용 오차로 둡니다.
+   * (그 이상 차이가 나면 "잘림"으로 보고 재주입합니다)
+   */
+  const 허용오차 = 2;
+  function 길이대조(원문, 입력내용) {
+    const a = 대조용정규화(원문);
+    const b = 대조용정규화(입력내용);
+    const 차이 = Math.abs(a.length - b.length);
+    return {
+      일치: a === b || 차이 <= 허용오차,
+      원문길이: a.length,
+      입력길이: b.length,
+    };
+  }
+
+  /** 입력란을 비웁니다(재주입 전 정리). */
+  async function 입력란비우기(요소) {
+    if (!요소) return;
+    요소.focus();
+    if (요소.tagName === "TEXTAREA" || 요소.tagName === "INPUT") {
+      const setter = Object.getOwnPropertyDescriptor(
+        요소.tagName === "TEXTAREA"
+          ? window.HTMLTextAreaElement.prototype
+          : window.HTMLInputElement.prototype,
+        "value"
+      ).set;
+      setter.call(요소, "");
+      요소.dispatchEvent(new Event("input", { bubbles: true }));
+    } else {
+      const 선택 = window.getSelection();
+      const 범위 = document.createRange();
+      범위.selectNodeContents(요소);
+      선택.removeAllRanges();
+      선택.addRange(범위);
+      document.execCommand("delete", false, null);
+      요소.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    }
+    await 잠깐(120);
+  }
+
+  /** 화면 오른쪽 위에 경고 배지를 잠깐 띄웁니다(주입 불완전 알림). */
+  function 경고배지(글) {
+    try {
+      let 배지 = document.getElementById("__3대장_경고배지");
+      if (!배지) {
+        배지 = document.createElement("div");
+        배지.id = "__3대장_경고배지";
+        배지.style.cssText = [
+          "position:fixed", "top:12px", "right:12px", "z-index:2147483647",
+          "max-width:320px", "padding:10px 12px", "border-radius:8px",
+          "background:#1c1f22", "color:#e6edf0", "font:13px/1.5 sans-serif",
+          "border:1px solid #2dd4bf", "box-shadow:0 4px 16px rgba(0,0,0,.4)",
+          "white-space:pre-wrap", "cursor:pointer",
+        ].join(";");
+        배지.addEventListener("click", () => 배지.remove());
+        document.documentElement.appendChild(배지);
+      }
+      배지.textContent = "⚠ 3대장 카페\n" + 글 + "\n(눌러서 닫기)";
+      clearTimeout(배지.__타이머);
+      배지.__타이머 = setTimeout(() => 배지.remove(), 20000);
+    } catch (e) {
+      /* 페이지 사정으로 못 띄워도 전송은 계속합니다 */
+    }
+  }
+
+  /**
+   * 글자를 넣고 → 길이를 대조하고 → 어긋나면 1회 자동 재주입합니다.
+   * 재주입도 실패하면 경고 배지를 띄우되 전송은 막지 않고,
+   * "주입 불완전" 사실을 호출자에게 알려 이력에 남기게 합니다.
+   */
+  async function 안전주입(설정, 입력란, 본문) {
+    let 요소 = 입력란;
+    let 마지막대조 = null;
+
+    for (let 회차 = 0; 회차 < 2; 회차++) {
+      const 넣기됨 = await 글자넣기(요소, 본문);
+      // 위 글자넣기() 안에서 이미 150ms 기다립니다 — 그 직후 대조합니다.
+      요소 = 요소찾기(설정.입력란) || 요소;
+      마지막대조 = 길이대조(본문, 입력란원문(요소));
+
+      if (넣기됨 && 마지막대조.일치) {
+        return { 성공: true, 대조: 마지막대조, 재주입: 회차 > 0 };
+      }
+      if (회차 === 0) {
+        // 잘렸거나 아예 안 들어감 → 비우고 한 번 더
+        await 입력란비우기(요소);
+        요소 = 요소찾기(설정.입력란) || 요소;
+      }
+    }
+
+    if (!마지막대조.입력길이) {
+      return { 성공: false, 비어있음: true, 대조: 마지막대조 };
+    }
+    경고배지(
+      `보낸 글이 입력창에 다 들어가지 않았습니다.\n원문 ${마지막대조.원문길이}자 / 입력 ${마지막대조.입력길이}자\n보내기 전에 내용을 확인하세요.`
+    );
+    return { 성공: false, 주입불완전: true, 대조: 마지막대조 };
   }
 
   /**
@@ -503,30 +637,244 @@
     }
   }
 
-  /* ─────────────── 답변 수집 (답변 모으기용) ─────────────── */
+  /* ─────────────── 답변 수집 (답변 모으기용) ───────────────
+   * v1.18부터 두 갈래로 수집합니다.
+   *   A안(기본): 사이트 자체 "복사" 버튼을 눌러 클립보드를 읽습니다.
+   *              사이트가 만든 원본 마크다운이라 표·코드블록이 그대로 살아 있습니다.
+   *   B안(폴백): A안이 안 되거나 품질검사에 걸리면, 답변 HTML을
+   *              Turndown(+GFM 플러그인)으로 마크다운으로 변환합니다.
+   * 어느 쪽을 썼는지·왜 그랬는지는 진단 기록으로 남겨 이력 패널에서 봅니다.
+   */
 
-  function 최신답변가져오기(설정) {
+  /** 화면에 있는 마지막(최신) 답변 덩어리를 찾습니다. */
+  function 최신답변컨테이너(설정) {
     for (const 선택자 of 설정.답변블록 || []) {
       const 블록들 = document.querySelectorAll(선택자);
       if (블록들.length) {
         const 마지막 = 블록들[블록들.length - 1];
-        const 글 = (마지막.innerText || "").trim();
-        if (글) return 글.slice(0, 30000); // 지나치게 긴 답변은 앞부분만
+        if ((마지막.innerText || "").trim()) return 마지막;
       }
     }
     return null;
   }
 
+  /* ── B안: HTML → 마크다운 변환기 (Turndown + GFM) ── */
+  let 변환기캐시 = null;
+  function 변환기가져오기() {
+    if (변환기캐시) return 변환기캐시;
+    if (typeof TurndownService === "undefined") return null;
+    const 변환기 = new TurndownService({
+      headingStyle: "atx",
+      codeBlockStyle: "fenced",
+      bulletListMarker: "-",
+      hr: "---",
+      emDelimiter: "*",
+    });
+    // 표·취소선·작업목록 등 GFM 문법 지원
+    if (globalThis.turndownPluginGfm && globalThis.turndownPluginGfm.gfm) {
+      변환기.use(globalThis.turndownPluginGfm.gfm);
+    }
+    // 코드블록: 내용 안에 백틱이 있으면 그보다 긴 펜스를 씁니다(중첩 백틱 대응).
+    변환기.addRule("펜스코드블록", {
+      filter: (노드) => 노드.nodeName === "PRE",
+      replacement: (_내용, 노드) => {
+        const 코드 = (노드.textContent || "").replace(/\n+$/, "");
+        const 최장백틱 = (코드.match(/`+/g) || []).reduce(
+          (큰, 조각) => Math.max(큰, 조각.length),
+          0
+        );
+        const 펜스 = "`".repeat(Math.max(3, 최장백틱 + 1));
+        const 클래스 =
+          (노드.className || "") +
+          " " +
+          ((노드.firstElementChild && 노드.firstElementChild.className) || "");
+        const 맞음 = 클래스.match(/(?:language|lang)-(\S+)/);
+        return `\n\n${펜스}${맞음 ? 맞음[1] : ""}\n${코드}\n${펜스}\n\n`;
+      },
+    });
+    변환기캐시 = 변환기;
+    return 변환기;
+  }
+
+  function B안수집(컨테이너) {
+    const 변환기 = 변환기가져오기();
+    if (!변환기) return { 글: (컨테이너.innerText || "").trim(), 변환실패: true };
+    try {
+      return { 글: 변환기.turndown(컨테이너.innerHTML || "").trim() };
+    } catch (e) {
+      return { 글: (컨테이너.innerText || "").trim(), 변환실패: true };
+    }
+  }
+
+  /* ── A안: 사이트 자체 복사 버튼 + 클립보드 ── */
+
+  /** 답변 덩어리 근처(위로 5단계 조상까지)에서 복사 버튼을 찾습니다. */
+  function 복사버튼찾기(설정, 컨테이너) {
+    const 후보들 = 설정.복사버튼 || [];
+    if (!후보들.length) return null;
+    let 범위 = 컨테이너;
+    for (let i = 0; i < 6 && 범위; i++) {
+      for (const 선택자 of 후보들) {
+        const 찾음 = 범위.querySelectorAll(선택자);
+        if (찾음.length) return 찾음[찾음.length - 1];
+      }
+      범위 = 범위.parentElement;
+    }
+    // 조상 안에 없으면 문서 전체에서 마지막(=최신 답변) 것을 씁니다.
+    for (const 선택자 of 후보들) {
+      const 찾음 = document.querySelectorAll(선택자);
+      if (찾음.length) return 찾음[찾음.length - 1];
+    }
+    return null;
+  }
+
+  /**
+   * 복사 버튼을 눌러 클립보드에서 답변을 읽습니다.
+   * 사용자의 원래 클립보드 내용은 미리 백업했다가 되돌려 놓습니다.
+   * (그림 등 글자가 아닌 내용은 되돌릴 수 없어 경고를 함께 돌려줍니다)
+   */
+  async function A안수집(설정, 컨테이너) {
+    const 버튼 = 복사버튼찾기(설정, 컨테이너);
+    if (!버튼) return { 사유: "복사 버튼을 찾지 못함" };
+
+    let 백업 = null;
+    let 백업됨 = false;
+    try {
+      백업 = await navigator.clipboard.readText();
+      백업됨 = true;
+    } catch (e) {
+      // 클립보드를 못 읽는 상황(창이 뒤에 있어 포커스가 없는 등)
+      백업됨 = false;
+    }
+
+    let 글 = "";
+    let 사유 = null;
+    try {
+      진짜클릭(버튼);
+      // 사이트가 클립보드에 쓸 시간을 줍니다(내용이 바뀔 때까지 최대 1.5초).
+      for (let i = 0; i < 6; i++) {
+        await 잠깐(250);
+        const 지금 = await navigator.clipboard.readText();
+        if (지금 && (!백업됨 || 지금 !== 백업)) {
+          글 = 지금;
+          break;
+        }
+        글 = 지금 || "";
+      }
+      if (!글) 사유 = "복사 버튼을 눌렀지만 클립보드가 비어 있음";
+    } catch (e) {
+      사유 = "클립보드를 읽지 못함 (창이 앞에 없거나 권한 거부)";
+    }
+
+    // 클립보드 복구
+    let 클립보드경고 = null;
+    if (글) {
+      if (백업됨) {
+        if (백업 !== 글) {
+          try {
+            await navigator.clipboard.writeText(백업);
+          } catch (e) {
+            클립보드경고 = "클립보드 내용이 바뀌었습니다 (원래 내용 복구 실패)";
+          }
+        }
+      } else {
+        클립보드경고 =
+          "클립보드 내용이 바뀌었습니다 (원래 내용을 백업하지 못해 복구 불가)";
+      }
+    }
+
+    return { 글: (글 || "").trim(), 사유, 클립보드경고 };
+  }
+
+  /* ── 자가 품질검사: A안 결과가 원본 마크다운인지 판정 ── */
+  function 품질검사(글, pre있음, table있음) {
+    if (!글 || !글.trim()) return { 통과: false, 사유: "수집 텍스트가 비어 있음" };
+    if (pre있음 && !글.includes("```")) {
+      return { 통과: false, 사유: "코드블록이 있는데 ``` 펜스가 없음" };
+    }
+    if (table있음 && !/^[ \t]*\|/m.test(글)) {
+      return { 통과: false, 사유: "표가 있는데 | 로 시작하는 줄이 없음" };
+    }
+    return { 통과: true };
+  }
+
+  /** 진단 기록을 콘솔에 찍고 백그라운드(이력 패널)로 보냅니다. */
+  function 진단남기기(기록) {
+    try {
+      console.log(
+        `[3대장 수집] ${기록.사이트} · ${기록.방식}안 · ` +
+          `pre=${기록.pre있음} table=${기록.table있음} · ` +
+          `${기록.길이}자 · 품질검사 ${기록.품질통과 ? "통과" : "실패"}` +
+          (기록.품질사유 ? ` (${기록.품질사유})` : "")
+      );
+      chrome.runtime.sendMessage({ 종류: "수집진단", 기록 }).catch(() => {});
+    } catch (e) {
+      /* 무시 */
+    }
+  }
+
+  /** 최신 답변을 A안 → (실패 시) B안으로 수집합니다. */
+  async function 답변수집실행(사이트키, 설정) {
+    const 컨테이너 = 최신답변컨테이너(설정);
+    if (!컨테이너) {
+      return { 성공: false, 사유: "답변을 찾지 못함 (selectors.js 갱신 필요)" };
+    }
+    const pre있음 = !!컨테이너.querySelector("pre");
+    const table있음 = !!컨테이너.querySelector("table");
+
+    const A = await A안수집(설정, 컨테이너);
+    let 방식 = "A";
+    let 글 = A.글 || "";
+    let 품질 = 글
+      ? 품질검사(글, pre있음, table있음)
+      : { 통과: false, 사유: A.사유 || "복사 버튼 수집 실패" };
+
+    if (!품질.통과) {
+      // B안 폴백 — 답변 HTML을 마크다운으로 변환
+      방식 = "B";
+      const B = B안수집(컨테이너);
+      글 = B.글 || "";
+      품질 = Object.assign(
+        {},
+        품질검사(글, pre있음, table있음),
+        { A안사유: 품질.사유, 변환실패: B.변환실패 || false }
+      );
+    }
+
+    const 기록 = {
+      시각: Date.now(),
+      사이트: 설정.이름 || 사이트키,
+      방식,
+      pre있음,
+      table있음,
+      길이: 글.length,
+      품질통과: !!품질.통과,
+      품질사유: 품질.사유 || 품질.A안사유 || "",
+    };
+    진단남기기(기록);
+
+    if (!글) {
+      return { 성공: false, 사유: "답변 본문을 읽지 못함", 진단: 기록 };
+    }
+    return {
+      성공: true,
+      본문: 글.slice(0, 60000), // 지나치게 긴 답변은 앞부분만
+      진단: 기록,
+      클립보드경고: A.클립보드경고 || null,
+    };
+  }
+
   chrome.runtime.onMessage.addListener((메시지, _발신, 응답) => {
     if (메시지.종류 === "답변수집") {
       const 설정 = BRIDGE_SELECTORS[메시지.사이트];
-      const 본문 = 설정 ? 최신답변가져오기(설정) : null;
-      응답(
-        본문
-          ? { 성공: true, 본문 }
-          : { 성공: false, 사유: "답변을 찾지 못함 (selectors.js 갱신 필요)" }
+      if (!설정) {
+        응답({ 성공: false, 사유: "알 수 없는 사이트" });
+        return;
+      }
+      답변수집실행(메시지.사이트, 설정).then(응답, () =>
+        응답({ 성공: false, 사유: "답변 수집 중 오류" })
       );
-      return; // 동기 응답
+      return true; // 비동기 응답
     }
 
     if (메시지.종류 !== "질문전송") return;
@@ -555,10 +903,11 @@
       // 첨부(파일·사진)를 먼저 붙입니다 — 실패해도 글 전송은 계속합니다.
       const 첨부결과 = await 첨부붙이기(설정, 입력란, 메시지.첨부);
 
-      const 넣기성공 = 메시지.본문
-        ? await 글자넣기(요소찾기(설정.입력란) || 입력란, 메시지.본문)
-        : true; // 첨부만 보내는 경우 글자 넣기는 생략
-      if (!넣기성공) {
+      // 글자 넣기 + 길이 대조 + 필요하면 1회 자동 재주입 (v1.18 주입 안전망)
+      const 주입결과 = 메시지.본문
+        ? await 안전주입(설정, 요소찾기(설정.입력란) || 입력란, 메시지.본문)
+        : { 성공: true }; // 첨부만 보내는 경우 글자 넣기는 생략
+      if (!주입결과.성공 && 주입결과.비어있음) {
         응답({
           성공: false,
           사유: "입력란에 글자를 넣지 못함 (selectors.js 갱신 필요)",
@@ -566,6 +915,16 @@
         });
         return;
       }
+      // 잘렸지만 글자는 들어간 경우 — 전송은 막지 않고 사실만 함께 알립니다.
+      const 주입알림 = 주입결과.주입불완전
+        ? {
+            주입불완전: true,
+            원문길이: 주입결과.대조.원문길이,
+            입력길이: 주입결과.대조.입력길이,
+          }
+        : 주입결과.재주입
+        ? { 재주입: true }
+        : {};
 
       const 전송결과 = await 전송하기(
         설정,
@@ -573,17 +932,21 @@
         !!(메시지.첨부 && 메시지.첨부.length)
       );
       if (!전송결과.성공) {
-        응답({ 성공: false, 사유: 전송결과.사유, 모델: 모델결과 });
+        응답(
+          Object.assign({ 성공: false, 사유: 전송결과.사유, 모델: 모델결과 }, 주입알림)
+        );
         return;
       }
       if (!첨부결과.성공) {
         // 글은 갔지만 첨부는 못 붙은 경우 — 알려는 주되 성공으로 처리
-        응답({ 성공: true, 모델: 모델결과, 첨부실패: true });
+        응답(
+          Object.assign({ 성공: true, 모델: 모델결과, 첨부실패: true }, 주입알림)
+        );
         return;
       }
       // 전송 성공 → 백그라운드에서 답변 완료를 지켜봅니다 (응답을 막지 않음)
       답변감시(설정, 메시지.사이트);
-      응답({ 성공: true, 모델: 모델결과 });
+      응답(Object.assign({ 성공: true, 모델: 모델결과 }, 주입알림));
     })();
 
     return true; // 비동기 응답 사용

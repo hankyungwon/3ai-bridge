@@ -63,6 +63,15 @@ const BRIDGE_SELECTORS = {
       ".font-claude-message",
       'div[data-test-render-count] div[class*="font-claude"]',
     ],
+    // 답변에 붙어 있는 사이트 자체의 "복사" 버튼 (A안 수집용).
+    // 이 버튼이 주는 글은 사이트가 만든 원본 마크다운이라 표·코드블록이 살아 있습니다.
+    // 못 찾거나 눌러도 품질이 나쁘면 자동으로 B안(HTML→마크다운 변환)으로 넘어갑니다.
+    복사버튼: [
+      'button[data-testid="action-bar-copy"]',
+      '[data-testid="action-bar-copy"]',
+      'button[aria-label="Copy"]',
+      'button[aria-label*="복사"]',
+    ],
     // 첨부를 넣는 방식(순서대로 시도): input=숨겨진 파일 업로드 칸에 직접 주입,
     // paste=붙여넣기 이벤트, drop=끌어다 놓기 이벤트
     첨부방식: ["input", "drop", "paste"],
@@ -115,6 +124,13 @@ const BRIDGE_SELECTORS = {
       '[data-message-author-role="assistant"]',
       'div[data-testid^="conversation-turn"] .markdown',
     ],
+    // 답변에 붙어 있는 사이트 자체의 "복사" 버튼 (A안 수집용)
+    복사버튼: [
+      'button[data-testid="copy-turn-action-button"]',
+      'button[aria-label="복사"]',
+      'button[aria-label="Copy"]',
+      'button[aria-label*="복사"]',
+    ],
     첨부방식: ["paste", "input"],
     파일입력: ['input[type="file"][multiple]', 'input[type="file"]'],
   },
@@ -161,6 +177,14 @@ const BRIDGE_SELECTORS = {
       "message-content",
       ".model-response-text",
       "model-response",
+    ],
+    // 답변에 붙어 있는 사이트 자체의 "복사" 버튼 (A안 수집용)
+    복사버튼: [
+      "copy-button button",
+      'button[data-test-id="copy-button"]',
+      'button[aria-label*="복사"]',
+      'button[aria-label*="Copy"]',
+      'button[mattooltip*="복사"]',
     ],
     첨부방식: ["paste", "input", "drop"],
     파일입력: ['input[type="file"]'],

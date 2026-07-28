@@ -1,14 +1,16 @@
 {
   "manifest_version": 3,
   "name": "AI 3대장(제비·참새·하마) 카페",
-  "version": "1.17.1",
+  "version": "1.18.0",
   "description": "제비(Gemini)·참새(ChatGPT)·하마(Claude) 3대장에게 질문을 한 번에 보내고 한 화면에서 부리는 확장 프로그램",
   "permissions": [
     "storage",
     "tabs",
     "windows",
     "scripting",
-    "system.display"
+    "system.display",
+    "clipboardRead",
+    "clipboardWrite"
   ],
   "host_permissions": [
     "https://claude.ai/*",
@@ -41,6 +43,8 @@
         "https://gemini.google.com/*"
       ],
       "js": [
+        "vendor/turndown.js",
+        "vendor/turndown-plugin-gfm.js",
         "selectors.js",
         "content.js"
       ],
