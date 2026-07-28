@@ -1319,3 +1319,19 @@ body.바 .모은답변 {
   border-radius: 6px;
   padding: 8px;
 }
+
+
+/* ── v1.18 배치 조정 ──
+ * 입력창이 너무 넓어 가운데 제어판이 좌우에 끼여 답답해 보이던 문제.
+ * 입력창 폭을 줄이고, 세 칸 사이 간격을 넓혔습니다.
+ */
+body.바 .바그리드 {
+  grid-template-columns: 1.45fr auto 1fr;
+  gap: 22px;
+}
+body.바 .제어칸 {
+  padding: 0 4px;
+}
+body.바 .제어줄 {
+  gap: 10px;
+}

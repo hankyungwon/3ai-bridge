@@ -537,6 +537,34 @@ async function 이력그리기() {
  * 세 사이트의 최신 답변을 걷어 와 하나의 문서로 만들어
  * 클립보드에 복사하고, 아래에 펼쳐볼 수 있게 보여줍니다.
  */
+/** 안전한 클립보드 복사 — 자동 복사가 막힌 환경에서도 되도록 두 가지를 씁니다. */
+async function 클립보드복사(글) {
+  try {
+    await navigator.clipboard.writeText(글);
+    return true;
+  } catch (e) {
+    /* 아래 대비책으로 */
+  }
+  try {
+    const 임시 = document.createElement("textarea");
+    임시.value = 글;
+    임시.style.position = "fixed";
+    임시.style.opacity = "0";
+    document.body.appendChild(임시);
+    임시.select();
+    const 됨 = document.execCommand("copy");
+    document.body.removeChild(임시);
+    return 됨;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * 세 답변 복사 — 세 AI의 최신 답변을 한 문서로 합쳐 클립보드에 넣습니다.
+ * 화면 배치는 건드리지 않습니다. (예전에는 패널이 펼쳐지며 입력창을 가렸음)
+ * 복사한 뒤 한글·워드·입력창 어디에나 바로 붙여넣으면 됩니다.
+ */
 async function 답변모으기() {
   const 버튼 = document.getElementById("모으기버튼");
   버튼.disabled = true;
@@ -545,55 +573,42 @@ async function 답변모으기() {
     const 응답 = await chrome.runtime.sendMessage({ 종류: "답변수집" });
     const 결과 = (응답 && 응답.결과) || {};
     let 문서 = "";
-    const 요약 = [];
-    for (const [키, r] of Object.entries(결과)) {
+    const 성공한곳 = [];
+    const 실패한곳 = [];
+    for (const [, r] of Object.entries(결과)) {
       if (r.성공) {
         문서 += `## ${r.이름}\n\n${r.본문}\n\n---\n\n`;
-        요약.push(`✅${r.이름}`);
+        성공한곳.push(r.이름);
       } else {
-        요약.push(`❌${r.이름}(${r.사유 || "실패"})`);
+        실패한곳.push(`${r.이름}(${r.사유 || "실패"})`);
       }
     }
 
-    const 결과상자 = document.getElementById("모으기결과");
-    결과상자.innerHTML = "";
-
-    // 사이트별 결과를 패널 안에 "항상 보이게" 적습니다.
-    // (예전에는 성공하면 아무 표시가 없고, 실패는 잠깐 뜨는 토스트뿐이라
-    //  버튼을 눌러도 아무 일도 안 일어난 것처럼 보였습니다.)
-    const 요약줄 = document.createElement("div");
-    요약줄.className = "모으기요약";
-    요약줄.textContent = 요약.join("   ");
-    결과상자.appendChild(요약줄);
-
-    if (문서) {
-      let 복사됨 = false;
-      try {
-        await navigator.clipboard.writeText(문서.trim());
-        복사됨 = true;
-      } catch (e) {
-        복사됨 = false;
-      }
-      요약줄.textContent =
-        요약.join("   ") +
-        (복사됨
-          ? "   → 클립보드에 복사했습니다. 붙여넣기(⌘V/Ctrl+V) 하세요."
-          : "   → 자동 복사가 막혀 아래 칸에서 직접 복사하세요.");
-
-      const 본문칸 = document.createElement("textarea");
-      본문칸.rows = 12;
-      본문칸.className = "모은답변";
-      본문칸.value = 문서.trim();
-      결과상자.appendChild(본문칸);
-      본문칸.select();
-    } else {
-      const 안내 = document.createElement("div");
-      안내.className = "모으기안내";
-      안내.textContent =
-        "가져올 답변이 없습니다. 세 AI가 답을 다 쓴 뒤에 눌러 주세요. " +
-        "계속 실패하면 사이트 화면이 바뀐 것이므로 수리요청.md 를 쓰시면 됩니다.";
-      결과상자.appendChild(안내);
+    if (!문서) {
+      토스트(
+        [
+          글줄(`복사할 답변이 없습니다 — ${실패한곳.join(", ")}`, "실패"),
+          글줄("세 AI가 답을 다 쓴 뒤에 눌러 주세요.", "안내"),
+        ],
+        9000
+      );
+      return;
     }
+
+    const 복사됨 = await 클립보드복사(문서.trim());
+    const 줄들 = [];
+    줄들.push(
+      글줄(
+        복사됨
+          ? `${성공한곳.join(" · ")} 답변을 복사했습니다. 붙여넣기(⌘V / Ctrl+V) 하세요.`
+          : "복사가 막혔습니다. 한 번 더 눌러 보세요.",
+        복사됨 ? "안내" : "실패"
+      )
+    );
+    if (실패한곳.length) {
+      줄들.push(글줄(`가져오지 못한 곳: ${실패한곳.join(", ")}`, "실패"));
+    }
+    토스트(줄들, 6000);
   } finally {
     버튼.disabled = false;
     버튼.textContent = "세 답변 복사";
@@ -727,9 +742,8 @@ document.getElementById("이력지우기").addEventListener("click", async (e) =
   await 이력그리기();
 });
 document.getElementById("이력검색").addEventListener("input", 이력그리기);
-document.getElementById("모으기버튼").addEventListener("click", async () => {
-  await 답변모으기();
-  await 확장패널열기(true); // 모은 답변을 바로 볼 수 있게 패널을 펼칩니다
+document.getElementById("모으기버튼").addEventListener("click", () => {
+  답변모으기(); // 복사만 합니다 — 창 크기·배치는 그대로
 });
 
 /* ── 접이식 패널: 명령바를 위로 늘려 이력·모은 답변을 보여줍니다 ──
