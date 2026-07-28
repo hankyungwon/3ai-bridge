@@ -36,6 +36,20 @@
           <span id="전환줄" class="전환묶음" title="창 전환 — 누르면 그 창이 앞으로"></span>
           <button id="창정리버튼" class="보조" title="창 배치 정렬 (윈도우 Alt+3 · 맥 ⌃3)">정렬</button>
         </div>
+        <!-- 표시 조절 바: 글자 크기 · 서체 · 고대비 (입력 가독성 전용) -->
+        <div class="제어줄 표시조절바">
+          <span class="조절조" title="입력 글자 크기">
+            <button id="글자작게" class="보조 조절버튼">A−</button>
+            <span id="글자크기표시" class="조절값">17px</span>
+            <button id="글자크게" class="보조 조절버튼">A+</button>
+          </span>
+          <span class="조절조" title="입력 서체">
+            <button id="서체기본" class="보조 서체버튼" data-서체="기본">기본</button>
+            <button id="서체가독" class="보조 서체버튼" data-서체="가독형">가독형</button>
+            <button id="서체고정" class="보조 서체버튼" data-서체="고정폭">고정폭</button>
+          </span>
+          <button id="고대비토글" class="보조" title="글자를 더 밝게, 입력창을 더 어둡게">고대비</button>
+        </div>
         <div class="제어줄">
           <button id="새대화버튼" class="보조" title="세 사이트 모두 새 대화로">새 대화</button>
           <button id="모두닫기버튼" class="보조" title="세 AI 창 모두 닫기">모두 닫기</button>
@@ -48,6 +62,9 @@
       <!-- ── 오른쪽: 최근 질문 미니 이력 (클릭하면 입력칸으로) ── -->
       <div id="미니이력" class="미니이력" title="최근 질문 — 클릭하면 입력칸으로 불러옵니다"></div>
     </div>
+
+    <!-- 서체 로딩 실패 안내 (입력창 아래, 수초 후 자동 소멸) -->
+    <div id="서체안내" class="서체안내 숨김" role="status" aria-live="polite"></div>
 
     <!-- 실패했을 때만 잠깐 나타나는 알림 (레이아웃에 영향 없음) -->
     <div id="상태" class="토스트 숨김"></div>
