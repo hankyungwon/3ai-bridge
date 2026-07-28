@@ -637,12 +637,154 @@
 
   /* ─────────────── 답변 수집 (답변 모으기용) ─────────────── */
 
+  /* ─────────────── 답변 본문 → 마크다운 ───────────────
+   * 예전에는 innerText 를 그대로 가져왔습니다. 그래서
+   *  (1) 답변 블록 안의 버튼 글자("복사", "다시 시도"…)가 본문에 섞이고,
+   *  (2) 표는 세로줄만 남고 코드블록은 코드펜스 없이 평문이 되었습니다.
+   * 이제는 화면 장식을 걷어낸 뒤, 문서 구조를 보고 마크다운으로 옮깁니다.
+   * 걷어낼 대상은 selectors.js 의 "본문제외" 에 사이트별로 적혀 있습니다.
+   */
+
+  /** 표 한 줄을 만듭니다. 칸 안의 세로줄은 표가 깨지지 않게 바꿔 둡니다. */
+  function 표줄(칸들) {
+    return "| " + 칸들.map((c) => c.replace(/\|/g, "\\|").trim()).join(" | ") + " |";
+  }
+
+  /** <pre> 안의 코드 언어를 알아냅니다 (class="language-js" 같은 표시). */
+  function 코드언어(요소) {
+    const 후보 = [요소,요소.querySelector("code")].filter(Boolean);
+    for (const el of 후보) {
+      const m = String(el.className || "").match(/language-([\w+#-]+)/i);
+      if (m) return m[1];
+    }
+    return "";
+  }
+
+  /** 요소 하나를 마크다운 조각으로 옮깁니다 (재귀). */
+  function 마크다운으로(노드) {
+    if (노드.nodeType === Node.TEXT_NODE) return 노드.nodeValue.replace(/\s+/g, " ");
+    if (노드.nodeType !== Node.ELEMENT_NODE) return "";
+
+    const 태그 = 노드.tagName.toLowerCase();
+    const 자식들 = () => [...노드.childNodes].map(마크다운으로).join("");
+
+    switch (태그) {
+      case "br":
+        return "\n";
+      case "hr":
+        return "\n\n---\n\n";
+      case "h1":
+      case "h2":
+      case "h3":
+      case "h4":
+      case "h5":
+      case "h6":
+        return "\n\n" + "#".repeat(+태그[1]) + " " + 자식들().trim() + "\n\n";
+      case "p":
+        return "\n\n" + 자식들().trim() + "\n\n";
+      case "strong":
+      case "b":
+        return "**" + 자식들().trim() + "**";
+      case "em":
+      case "i":
+        return "*" + 자식들().trim() + "*";
+      case "del":
+      case "s":
+        return "~~" + 자식들().trim() + "~~";
+      case "a": {
+        const 주소 = 노드.getAttribute("href") || "";
+        const 글 = 자식들().trim();
+        return 주소 && 주소 !== 글 ? `[${글}](${주소})` : 글;
+      }
+      case "code":
+        // <pre> 안의 code 는 pre 쪽에서 처리하므로 여기서는 인라인만.
+        if (노드.closest("pre")) return 노드.textContent;
+        return "`" + 노드.textContent.trim() + "`";
+      case "pre": {
+        const 언어 = 코드언어(노드);
+        const 코드 = (노드.querySelector("code") || 노드).textContent.replace(/\n+$/, "");
+        return "\n\n```" + 언어 + "\n" + 코드 + "\n```\n\n";
+      }
+      case "blockquote":
+        return (
+          "\n\n" +
+          자식들()
+            .trim()
+            .split("\n")
+            .map((줄) => "> " + 줄)
+            .join("\n") +
+          "\n\n"
+        );
+      case "ul":
+      case "ol": {
+        const 항목들 = [...노드.children].filter((el) => el.tagName === "LI");
+        const 줄들 = 항목들.map((li, i) => {
+          const 머리 = 태그 === "ol" ? `${i + 1}. ` : "- ";
+          const 안 = 마크다운으로(li).trim();
+          // 여러 줄짜리 항목은 이어지는 줄을 들여씁니다.
+          return 머리 + 안.split("\n").join("\n" + " ".repeat(머리.length));
+        });
+        return "\n\n" + 줄들.join("\n") + "\n\n";
+      }
+      case "li":
+        return 자식들().trim();
+      case "table": {
+        const 줄들 = [];
+        const 행들 = [...노드.querySelectorAll("tr")];
+        행들.forEach((tr, i) => {
+          const 칸들 = [...tr.children].map((td) => 마크다운으로(td).trim());
+          if (!칸들.length) return;
+          줄들.push(표줄(칸들));
+          // 첫 줄 뒤에 구분선을 넣어야 마크다운 표로 인식됩니다.
+          if (i === 0) 줄들.push("|" + 칸들.map(() => "---").join("|") + "|");
+        });
+        return 줄들.length ? "\n\n" + 줄들.join("\n") + "\n\n" : "";
+      }
+      case "th":
+      case "td":
+        return 자식들().trim();
+      case "img": {
+        const alt = 노드.getAttribute("alt") || "이미지";
+        const src = 노드.getAttribute("src") || "";
+        return src.startsWith("data:") ? `![${alt}]` : `![${alt}](${src})`;
+      }
+      default:
+        return 자식들();
+    }
+  }
+
+  /** 마크다운 결과를 다듬습니다: 빈 줄 3개 이상 → 2개, 줄 끝 공백 제거. */
+  function 마크다운다듬기(글) {
+    return String(글 || "")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  /**
+   * 답변 블록에서 화면 장식을 걷어내고 마크다운으로 옮깁니다.
+   * 변환에 실패하면 예전처럼 innerText 를 씁니다(빈손으로 돌아가지 않게).
+   */
+  function 블록을마크다운으로(블록, 설정) {
+    try {
+      const 사본 = 블록.cloneNode(true);
+      for (const 선택자 of 설정.본문제외 || []) {
+        for (const el of 사본.querySelectorAll(선택자)) el.remove();
+      }
+      const 글 = 마크다운다듬기(마크다운으로(사본));
+      if (글) return { 글, 방식: "마크다운변환" };
+    } catch (e) {
+      /* 아래 대비책 */
+    }
+    return { 글: (블록.innerText || "").trim(), 방식: "innerText(대비책)" };
+  }
+
   function 최신답변가져오기(설정) {
     for (const 선택자 of 설정.답변블록 || []) {
       const 블록들 = document.querySelectorAll(선택자);
       if (블록들.length) {
         const 마지막 = 블록들[블록들.length - 1];
-        const 글 = (마지막.innerText || "").trim();
+        const { 글 } = 블록을마크다운으로(마지막, 설정);
         if (글) return 글.slice(0, 30000); // 지나치게 긴 답변은 앞부분만
       }
     }
@@ -683,7 +825,7 @@
       fallbackTiming: "unknown(폴백 단계 없음)",
       extractSelector: null,
       extractSelectorTried: [],
-      postProcessApplied: ["trim()", "slice(0,30000)"],
+      postProcessApplied: ["본문제외 걷어내기", "마크다운 변환", "다듬기", "slice(0,30000)"],
       streamComplete: null,
       rawLength: null,
       finalLength: null,
@@ -711,6 +853,11 @@
             // 그 블록 안에 버튼·UI 요소가 몇 개나 들어 있는지 —
             // "선택 범위에 UI가 포함됐다"는 가설을 직접 재는 값입니다.
             진단.블록내버튼수 = 마지막.querySelectorAll("button").length;
+            진단.본문제외선택자 = (설정.본문제외 || []).join(" | ");
+            진단.걷어낸요소수 = (설정.본문제외 || []).reduce(
+              (합, 선택자) => 합 + 마지막.querySelectorAll(선택자).length,
+              0
+            );
             진단.블록내버튼글 = [...마지막.querySelectorAll("button")]
               .slice(0, 8)
               .map((b) => (b.innerText || b.getAttribute("aria-label") || "").trim())

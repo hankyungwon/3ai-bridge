@@ -65,6 +65,14 @@ const BRIDGE_SELECTORS = {
     ],
     // 첨부를 넣는 방식(순서대로 시도): input=숨겨진 파일 업로드 칸에 직접 주입,
     // paste=붙여넣기 이벤트, drop=끌어다 놓기 이벤트
+    // 답변 본문에서 걷어낼 것들 (버튼·도구모음 등 화면 장식)
+    본문제외: [
+      "button",
+      '[role="button"]',
+      '[role="toolbar"]',
+      '[data-testid*="action"]',
+      "svg",
+    ],
     첨부방식: ["input", "drop", "paste"],
     파일입력: [
       'input[data-testid="file-upload"]',
@@ -115,6 +123,13 @@ const BRIDGE_SELECTORS = {
       '[data-message-author-role="assistant"]',
       'div[data-testid^="conversation-turn"] .markdown',
     ],
+    본문제외: [
+      "button",
+      '[role="button"]',
+      '[role="toolbar"]',
+      ".sr-only",
+      "svg",
+    ],
     첨부방식: ["paste", "input"],
     파일입력: ['input[type="file"][multiple]', 'input[type="file"]'],
   },
@@ -161,6 +176,14 @@ const BRIDGE_SELECTORS = {
       "message-content",
       ".model-response-text",
       "model-response",
+    ],
+    본문제외: [
+      "button",
+      '[role="button"]',
+      '[role="toolbar"]',
+      "mat-icon",
+      ".mat-mdc-button-touch-target",
+      "svg",
     ],
     첨부방식: ["paste", "input", "drop"],
     파일입력: ['input[type="file"]'],
