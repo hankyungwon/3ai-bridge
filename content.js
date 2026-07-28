@@ -35,18 +35,82 @@
     return null;
   }
 
-  /**
-   * 입력란에 글자를 넣습니다.
-   * 사이트들이 React/Angular 를 쓰기 때문에 값만 바꾸면 인식하지 못합니다.
-   * 그래서 실제 타이핑과 같은 방식(execCommand insertText)을 사용합니다.
+  /* ─────────────── 글자 주입 (넣기 → 확인 → 안정 대기) ───────────────
+   * 예전 방식은 execCommand("insertText") 한 번만 던지고 150밀리초 뒤에
+   * "글자가 0자보다 많은가"만 봤습니다. 그래서
+   *   (1) 넣는 도중이라도 전송이 나가고,
+   *   (2) 절반만 들어가도 성공으로 보고되었습니다.
+   * 이제는 넣은 뒤 반드시 원문과 대조하고, 내용이 더 이상 변하지 않을 때까지
+   * 기다립니다. 한 방식이 실패하면 다른 방식으로 다시 시도합니다.
    */
-  async function 글자넣기(입력란, 본문) {
-    입력란.focus();
-    입력란.click();
-    await 잠깐(50);
 
+  /** 비교용: 공백·줄바꿈을 모두 지운 "글자만". 에디터가 줄을 블록으로 바꿔도 흔들리지 않습니다. */
+  function 글자만(글) {
+    return String(글 ?? "").replace(/\s+/g, "");
+  }
+
+  /** 입력란 원문을 다듬지 않고 그대로 읽습니다. */
+  function 원문읽기(요소) {
+    if (!요소) return "";
+    return 요소.value ?? 요소.innerText ?? 요소.textContent ?? "";
+  }
+
+  /** 입력란 전체를 선택합니다(기존 내용을 덮어쓰기 위해). */
+  function 전체선택(입력란) {
+    입력란.focus();
+    if (입력란.tagName === "TEXTAREA" ||입력란.tagName === "INPUT") {
+      입력란.setSelectionRange(0, 입력란.value.length);
+      return;
+    }
+    const 선택 = window.getSelection();
+    const 범위 = document.createRange();
+    범위.selectNodeContents(입력란);
+    선택.removeAllRanges();
+    선택.addRange(범위);
+  }
+
+  /**
+   * 입력란 내용이 더 이상 변하지 않을 때까지 기다립니다.
+   * 사이트(Angular/React)가 화면과 내부 상태를 맞추는 데 걸리는 시간을
+   * 고정 지연으로 어림잡지 않고 실제로 지켜봅니다.
+   */
+  async function 안정대기(설정, 입력란, 제한 = 8000) {
+    let 이전 = null;
+    let 같은횟수 = 0;
+    const 끝 = Date.now() + 제한;
+    while (Date.now() < 끝) {
+      const 지금입력란 = 요소찾기(설정.입력란) || 입력란;
+      const 지금 = 글자만(원문읽기(지금입력란));
+      if (지금 === 이전) {
+        같은횟수++;
+        if (같은횟수 >= 3) return { 값: 지금, 안정: true }; // 300밀리초 연속 동일
+      } else {
+        같은횟수 = 0;
+        이전 = 지금;
+      }
+      await 잠깐(100);
+    }
+    return { 값: 이전 ?? "", 안정: false };
+  }
+
+  /** 방식 1 — 붙여넣기 이벤트. 사람이 Ctrl+V 하는 것과 같아 가장 정확하고 빠릅니다. */
+  async function 넣기_붙여넣기(입력란, 본문) {
+    전체선택(입력란);
+    const dt = new DataTransfer();
+    dt.setData("text/plain", 본문);
+    입력란.dispatchEvent(
+      new ClipboardEvent("paste", {
+        clipboardData: dt,
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+  }
+
+  /** 방식 2 — 예전 방식(타이핑처럼 한 번에 삽입). 붙여넣기를 막는 사이트용 대비책. */
+  async function 넣기_삽입(입력란, 본문) {
+    전체선택(입력란);
     if (입력란.tagName === "TEXTAREA" || 입력란.tagName === "INPUT") {
-      // 네이티브 setter 를 써야 React 가 변경을 감지합니다.
       const setter = Object.getOwnPropertyDescriptor(
         입력란.tagName === "TEXTAREA"
           ? window.HTMLTextAreaElement.prototype
@@ -56,26 +120,71 @@
       setter.call(입력란, 본문);
       입력란.dispatchEvent(new Event("input", { bubbles: true }));
       입력란.dispatchEvent(new Event("change", { bubbles: true }));
-    } else {
-      // contenteditable (Claude, ChatGPT, Gemini 대부분)
-      const 기존선택 = window.getSelection();
-      const 범위 = document.createRange();
-      범위.selectNodeContents(입력란);
-      기존선택.removeAllRanges();
-      기존선택.addRange(범위);
-      // 기존 내용을 지우고 새 내용을 "입력"합니다.
-      document.execCommand("delete", false, null);
-      const 성공 = document.execCommand("insertText", false, 본문);
-      if (!성공) {
-        // execCommand 가 막힌 경우의 대비책
-        입력란.textContent = 본문;
-      }
-      입력란.dispatchEvent(new InputEvent("input", { bubbles: true }));
+      return;
     }
-    await 잠깐(150);
-    // 실제로 글자가 들어갔는지 확인
-    const 현재 = (입력란.value ?? 입력란.innerText ?? "").trim();
-    return 현재.length > 0;
+    document.execCommand("delete", false, null);
+    const 성공 = document.execCommand("insertText", false, 본문);
+    if (!성공) 입력란.textContent = 본문;
+    입력란.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  }
+
+  /** 방식 3 — 줄 단위로 나눠 넣기. 아주 긴 글에서 앞의 두 방식이 모두 실패할 때. */
+  async function 넣기_줄단위(입력란, 본문) {
+    전체선택(입력란);
+    document.execCommand("delete", false, null);
+    const 줄들 = 본문.split("\n");
+    for (let i = 0; i < 줄들.length; i++) {
+      if (i > 0) document.execCommand("insertText", false, "\n");
+      if (줄들[i]) document.execCommand("insertText", false, 줄들[i]);
+      // 아주 많은 줄일 때 브라우저가 숨 쉴 틈을 줍니다.
+      if (i % 50 === 49) await 잠깐(0);
+    }
+    입력란.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  }
+
+  /**
+   * 글자를 넣고 "원문 그대로 들어갔는지" 확인합니다.
+   * 세 가지 방식을 차례로 시도하고, 매번 안정될 때까지 기다린 뒤 대조합니다.
+   * 반환: { 성공, 방식, 넣은길이, 목표길이, 안정 }
+   */
+  async function 글자넣기(설정, 입력란, 본문) {
+    const 목표 = 글자만(본문);
+    const 방식들 = [
+      ["붙여넣기", 넣기_붙여넣기],
+      ["삽입", 넣기_삽입],
+      ["줄단위", 넣기_줄단위],
+    ];
+
+    let 마지막 = { 값: "", 안정: false };
+    for (const [이름, 넣기] of 방식들) {
+      const 지금입력란 = 요소찾기(설정.입력란) || 입력란;
+      지금입력란.focus();
+      지금입력란.click();
+      await 잠깐(50);
+      try {
+        await 넣기(지금입력란, 본문);
+      } catch (e) {
+        continue; // 이 방식은 막혔음 → 다음 방식
+      }
+      마지막 = await 안정대기(설정, 지금입력란);
+      if (마지막.값 === 목표) {
+        return {
+          성공: true,
+          방식: 이름,
+          넣은길이: 마지막.값.length,
+          목표길이: 목표.length,
+          안정: 마지막.안정,
+        };
+      }
+    }
+
+    return {
+      성공: false,
+      방식: null,
+      넣은길이: 마지막.값.length,
+      목표길이: 목표.length,
+      안정: 마지막.안정,
+    };
   }
 
   /** 입력란(어떤 종류든)에 현재 들어 있는 글자를 읽습니다. */
@@ -159,20 +268,43 @@
    * 누른 뒤 입력란이 실제로 비워졌는지 확인해서, "눌렀지만 전송은 안 된" 경우를
    * 성공으로 잘못 보고하지 않게 합니다. (세 사이트 모두 전송되면 입력란이 비워짐)
    */
-  async function 전송하기(설정, 입력란, 첨부있음) {
+  async function 전송하기(설정, 입력란, 첨부있음, 본문 = "") {
     let 버튼눌림 = false;
+    const 목표 = 글자만(본문);
 
     // 버튼이 활성화될 때까지 기다렸다가 누릅니다.
     // 첨부가 있으면 파일 업로드가 끝날 때까지 더 오래(최대 30초) 기다립니다.
+    // ★ 중요: "버튼이 눌리는가"만 보지 않고, 입력란 내용이 원문과 같은지도
+    //   함께 확인합니다. 예전에는 글자 한 자만 들어가도 버튼이 켜지기 때문에
+    //   반영이 끝나기 전에 눌러 잘린 글이 나가는 일이 있었습니다.
     const 시도횟수 = 첨부있음 ? 120 : 12;
     for (let i = 0; i < 시도횟수; i++) {
       const 버튼 = 요소찾기(설정.전송버튼);
-      if (버튼 && !버튼.disabled && 버튼.getAttribute("aria-disabled") !== "true") {
+      const 지금입력란 = 요소찾기(설정.입력란) || 입력란;
+      const 내용맞음 = !목표 || 글자만(원문읽기(지금입력란)) === 목표;
+      if (
+        내용맞음 &&
+        버튼 &&
+        !버튼.disabled &&
+        버튼.getAttribute("aria-disabled") !== "true"
+      ) {
         버튼.click();
         버튼눌림 = true;
         break;
       }
       await 잠깐(250);
+    }
+
+    // 버튼을 못 눌렀는데 내용까지 어긋나 있으면, Enter 로 잘린 글을 보내지 않습니다.
+    if (!버튼눌림 && 목표) {
+      const 지금입력란 = 요소찾기(설정.입력란) || 입력란;
+      const 지금글자 = 글자만(원문읽기(지금입력란));
+      if (지금글자 !== 목표) {
+        return {
+          성공: false,
+          사유: `입력 내용이 원문과 달라 전송을 멈췄습니다 (${지금글자.length}/${목표.length}자)`,
+        };
+      }
     }
 
     if (!버튼눌림) {
@@ -555,13 +687,18 @@
       // 첨부(파일·사진)를 먼저 붙입니다 — 실패해도 글 전송은 계속합니다.
       const 첨부결과 = await 첨부붙이기(설정, 입력란, 메시지.첨부);
 
-      const 넣기성공 = 메시지.본문
-        ? await 글자넣기(요소찾기(설정.입력란) || 입력란, 메시지.본문)
-        : true; // 첨부만 보내는 경우 글자 넣기는 생략
-      if (!넣기성공) {
+      // 글자를 넣고 "원문 그대로 들어갔는지" 확인합니다.
+      // 잘린 채로 전송되는 일이 없도록, 확인이 안 되면 여기서 멈춥니다.
+      const 넣기 = 메시지.본문
+        ? await 글자넣기(설정, 입력란, 메시지.본문)
+        : { 성공: true }; // 첨부만 보내는 경우 글자 넣기는 생략
+      if (!넣기.성공) {
         응답({
           성공: false,
-          사유: "입력란에 글자를 넣지 못함 (selectors.js 갱신 필요)",
+          사유:
+            넣기.넣은길이 > 0
+              ? `글이 일부만 입력됨 (${넣기.넣은길이}/${넣기.목표길이}자) — 전송하지 않았습니다`
+              : "입력란에 글자를 넣지 못함 (selectors.js 갱신 필요)",
           모델: 모델결과,
         });
         return;
@@ -570,7 +707,8 @@
       const 전송결과 = await 전송하기(
         설정,
         입력란,
-        !!(메시지.첨부 && 메시지.첨부.length)
+        !!(메시지.첨부 && 메시지.첨부.length),
+        메시지.본문 || ""
       );
       if (!전송결과.성공) {
         응답({ 성공: false, 사유: 전송결과.사유, 모델: 모델결과 });
