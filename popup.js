@@ -557,28 +557,46 @@ async function 답변모으기() {
 
     const 결과상자 = document.getElementById("모으기결과");
     결과상자.innerHTML = "";
+
+    // 사이트별 결과를 패널 안에 "항상 보이게" 적습니다.
+    // (예전에는 성공하면 아무 표시가 없고, 실패는 잠깐 뜨는 토스트뿐이라
+    //  버튼을 눌러도 아무 일도 안 일어난 것처럼 보였습니다.)
+    const 요약줄 = document.createElement("div");
+    요약줄.className = "모으기요약";
+    요약줄.textContent = 요약.join("   ");
+    결과상자.appendChild(요약줄);
+
     if (문서) {
+      let 복사됨 = false;
       try {
         await navigator.clipboard.writeText(문서.trim());
-        요약.push("→ 클립보드에 복사됨");
+        복사됨 = true;
       } catch (e) {
-        요약.push("→ 복사 실패, 아래에서 직접 복사하세요");
+        복사됨 = false;
       }
-      const 펼침 = document.createElement("details");
-      const 제목 = document.createElement("summary");
-      제목.textContent = "모은 답변 펼쳐 보기";
-      펼침.appendChild(제목);
+      요약줄.textContent =
+        요약.join("   ") +
+        (복사됨
+          ? "   → 클립보드에 복사했습니다. 붙여넣기(⌘V/Ctrl+V) 하세요."
+          : "   → 자동 복사가 막혀 아래 칸에서 직접 복사하세요.");
+
       const 본문칸 = document.createElement("textarea");
-      본문칸.rows = 10;
+      본문칸.rows = 12;
+      본문칸.className = "모은답변";
       본문칸.value = 문서.trim();
-      펼침.appendChild(본문칸);
-      결과상자.appendChild(펼침);
+      결과상자.appendChild(본문칸);
+      본문칸.select();
+    } else {
+      const 안내 = document.createElement("div");
+      안내.className = "모으기안내";
+      안내.textContent =
+        "가져올 답변이 없습니다. 세 AI가 답을 다 쓴 뒤에 눌러 주세요. " +
+        "계속 실패하면 사이트 화면이 바뀐 것이므로 수리요청.md 를 쓰시면 됩니다.";
+      결과상자.appendChild(안내);
     }
-    const 실패요약 = 요약.filter((글) => 글.startsWith("❌"));
-    if (실패요약.length) 토스트(실패요약.map((글) => 글줄(글, "실패")));
   } finally {
     버튼.disabled = false;
-    버튼.textContent = "답변 모으기";
+    버튼.textContent = "세 답변 복사";
   }
 }
 
