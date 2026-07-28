@@ -539,27 +539,49 @@ async function 이력그리기() {
  * 세 사이트의 최신 답변을 걷어 와 하나의 문서로 만들어
  * 클립보드에 복사하고, 아래에 펼쳐볼 수 있게 보여줍니다.
  */
-/** 안전한 클립보드 복사 — 자동 복사가 막힌 환경에서도 되도록 두 가지를 씁니다. */
+/**
+ * 안전한 클립보드 복사.
+ *
+ * 왜 두 가지를 쓰나:
+ *  사용자가 버튼을 누른 뒤 세 사이트에서 답변을 걷어 오는 동안(수 초)
+ *  "방금 클릭했다"는 효력(사용자 제스처)이 사라집니다. 그러면
+ *  navigator.clipboard.writeText 가 조용히 거부되어, 붙여넣기를 하면
+ *  예전에 복사해 둔 내용이 나옵니다. 그래서
+ *   (1) 창을 앞으로 불러 포커스를 확보하고,
+ *   (2) writeText 를 쓰되 실패하면 execCommand("copy") 로 다시 시도합니다.
+ *      (manifest 의 clipboardWrite 권한 덕분에 제스처 없이도 동작)
+ *  그리고 성공 여부를 절대 추측하지 않고 그대로 보고합니다.
+ */
 async function 클립보드복사(글) {
   try {
-    await navigator.clipboard.writeText(글);
-    return true;
+    window.focus();
   } catch (e) {
-    /* 아래 대비책으로 */
+    /* 무시 */
   }
-  try {
-    const 임시 = document.createElement("textarea");
-    임시.value = 글;
-    임시.style.position = "fixed";
-    임시.style.opacity = "0";
-    document.body.appendChild(임시);
-    임시.select();
-    const 됨 = document.execCommand("copy");
-    document.body.removeChild(임시);
-    return 됨;
-  } catch (e) {
-    return false;
+  for (let 회차 = 0; 회차 < 2; 회차++) {
+    try {
+      await navigator.clipboard.writeText(글);
+      return true;
+    } catch (e) {
+      /* 아래 대비책 */
+    }
+    try {
+      const 임시 = document.createElement("textarea");
+      임시.value = 글;
+      임시.style.position = "fixed";
+      임시.style.top = "0";
+      임시.style.opacity = "0";
+      document.body.appendChild(임시);
+      임시.focus();
+      임시.setSelectionRange(0, 글.length);
+      const 됨 = document.execCommand("copy");
+      document.body.removeChild(임시);
+      if (됨) return true;
+    } catch (e) {
+      /* 다음 회차 */
+    }
   }
+  return false;
 }
 
 /**
@@ -597,20 +619,41 @@ async function 답변모으기() {
       return;
     }
 
-    const 복사됨 = await 클립보드복사(문서.trim());
-    const 줄들 = [];
-    줄들.push(
-      글줄(
-        복사됨
-          ? `${성공한곳.join(" · ")} 답변을 복사했습니다. 붙여넣기(⌘V / Ctrl+V) 하세요.`
-          : "복사가 막혔습니다. 한 번 더 눌러 보세요.",
-        복사됨 ? "안내" : "실패"
-      )
-    );
+    // 한 곳이라도 빠졌으면, 반쪽짜리를 조용히 복사해 두지 않고 먼저 알립니다.
     if (실패한곳.length) {
-      줄들.push(글줄(`가져오지 못한 곳: ${실패한곳.join(", ")}`, "실패"));
+      토스트(
+        [
+          글줄(`${실패한곳.join(", ")} — 이 곳은 빠졌습니다`, "실패"),
+          글줄(`${성공한곳.join(" · ")} 답변만 복사합니다.`, "안내"),
+        ],
+        9000
+      );
     }
-    토스트(줄들, 6000);
+
+    const 복사됨 = await 클립보드복사(문서.trim());
+    if (!복사됨) {
+      // 복사에 실패했으면 "됐다"고 하지 않습니다.
+      // (예전에는 실패해도 성공으로 알려, 붙여넣으면 옛 내용이 나왔습니다)
+      토스트(
+        [
+          글줄("복사하지 못했습니다 — 클립보드가 막혔습니다.", "실패"),
+          글줄("명령바를 한 번 클릭한 뒤 다시 눌러 주세요.", "안내"),
+        ],
+        9000
+      );
+      return;
+    }
+    const 글자수 = 문서.trim().length;
+    토스트(
+      [
+        글줄(
+          `${성공한곳.join(" · ")} 답변 ${글자수.toLocaleString("ko-KR")}자를 복사했습니다.`,
+          "안내"
+        ),
+        글줄("붙여넣기(⌘V / Ctrl+V) 하세요.", "안내"),
+      ],
+      6000
+    );
   } finally {
     버튼.disabled = false;
     버튼.textContent = "세 답변 복사";
