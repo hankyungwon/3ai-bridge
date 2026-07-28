@@ -157,3 +157,124 @@ function 배치옵션그리기() {
   배치옵션그리기();
   프로필그리기();
 })();
+
+
+/* ─────────────── 진단 로그 열람 (관찰 전용) ───────────────
+ * 개발자도구 없이도 로그를 보고 통째로 복사할 수 있게 합니다.
+ */
+
+const 로그라벨 = {
+  runId: "묶음 ID",
+  site: "사이트",
+  이름: "이름",
+  수집성공: "수집 성공",
+  실패사유: "실패 사유",
+  재시도횟수: "재시도 횟수",
+  ts: "시각",
+  path: "사용한 경로",
+  pathAttempted: "시도한 경로",
+  copyButtonFound: "복사 버튼 탐색",
+  clipboardReadResult: "클립보드 읽기",
+  documentHasFocus: "읽기 직전 창 포커스",
+  documentHasFocusNow: "수집 시점 창 포커스",
+  qualityCheck: "자가 품질검사",
+  qualityFailReason: "품질검사 실패 항목",
+  fallbackFired: "폴백 실행",
+  fallbackTiming: "폴백 시점",
+  extractSelector: "실제 사용 선택자",
+  extractSelectorTried: "시도한 선택자",
+  추출블록태그: "추출한 블록",
+  블록내버튼수: "그 블록 안 버튼 수",
+  블록내버튼글: "그 버튼들의 글자",
+  postProcessApplied: "후처리 단계",
+  streamComplete: "생성 완료 판정",
+  rawLength: "원시 길이",
+  finalLength: "최종 길이",
+  head120: "앞 120자",
+  tail120: "뒤 120자",
+  결과모양: "결과 모양(관찰)",
+  계측오류: "계측 오류",
+};
+
+function 값글로(값) {
+  if (값 === null || 값 === undefined) return "(없음)";
+  if (Array.isArray(값)) return 값.length ? 값.join(" / ") : "(빈 목록)";
+  if (typeof 값 === "object") return JSON.stringify(값, null, 1);
+  return String(값);
+}
+
+async function 로그읽기() {
+  const { diagLog } = await chrome.storage.local.get("diagLog");
+  return Array.isArray(diagLog) ? diagLog : [];
+}
+
+document.getElementById("로그보기").addEventListener("click", async () => {
+  const 기록 = await 로그읽기();
+  const 상자 = document.getElementById("로그내용");
+  const 안내 = document.getElementById("로그안내");
+  if (!기록.length) {
+    상자.style.display = "none";
+    안내.textContent =
+      "아직 기록이 없습니다. 「세 답변 복사」를 한 번 누른 뒤 다시 보십시오.";
+    return;
+  }
+  const 줄 = [];
+  for (const 묶음 of 기록.slice(0, 5)) {
+    줄.push("══ 묶음 " + 묶음.runId + "  (" + 묶음.ts + ") ══");
+    for (const 항목 of 묶음.항목들 || []) {
+      줄.push("── " + (항목.이름 || 항목.site) + " ──");
+      for (const [키, 값] of Object.entries(항목)) {
+        if (키 === "site" ||키 === "runId") continue;
+        줄.push("  " + (로그라벨[키] || 키) + ": " + 값글로(값));
+      }
+    }
+    줄.push("");
+  }
+  상자.textContent = 줄.join("\n");
+  상자.style.display = "block";
+  안내.textContent = `최근 ${Math.min(5, 기록.length)}개 묶음을 표시했습니다 (전체 ${기록.length}개 보관 중).`;
+});
+
+document.getElementById("로그복사").addEventListener("click", async () => {
+  const 안내 = document.getElementById("로그안내");
+  const 기록 = await 로그읽기();
+  const 글 = JSON.stringify(기록, null, 2);
+  let 복사됨 = false;
+  try {
+    await navigator.clipboard.writeText(글);
+    복사됨 = true;
+  } catch (e) {
+    try {
+      const 임시 = document.createElement("textarea");
+      임시.value = 글;
+      document.body.appendChild(임시);
+      임시.select();
+      복사됨 = document.execCommand("copy");
+      document.body.removeChild(임시);
+    } catch (e2) {
+      복사됨 = false;
+    }
+  }
+  안내.textContent = 복사됨
+    ? `복사됨 — ${기록.length}개 묶음, ${글.length.toLocaleString("ko-KR")}자`
+    : "복사하지 못했습니다. 「최근 로그 보기」로 띄운 뒤 직접 긁어 복사해 주십시오.";
+});
+
+document.getElementById("로그비우기").addEventListener("click", async () => {
+  const 버튼 = document.getElementById("로그비우기");
+  const 안내 = document.getElementById("로그안내");
+  if (버튼.dataset.확인 !== "예") {
+    버튼.dataset.확인 = "예";
+    버튼.textContent = "정말 지울까요?";
+    setTimeout(() => {
+      버튼.dataset.확인 = "";
+      버튼.textContent = "로그 비우기";
+    }, 4000);
+    return;
+  }
+  버튼.dataset.확인 = "";
+  버튼.textContent = "로그 비우기";
+  await chrome.storage.local.remove("diagLog");
+  document.getElementById("로그내용").style.display = "none";
+  안내.textContent = "로그를 비웠습니다.";
+});

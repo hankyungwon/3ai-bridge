@@ -649,6 +649,102 @@
     return null;
   }
 
+  /* ─────────────── 수집 진단 계측 (관찰 전용) ───────────────
+   * 아래 함수는 수집 결과를 "바꾸지 않습니다". 위의 최신답변가져오기 와
+   * 똑같은 순서로 한 번 더 훑어보며, 어느 선택자가 쓰였고 결과가 어떤
+   * 모양인지만 기록합니다.
+   *
+   * 지시서가 가정한 A안(클립보드 복사 버튼)·B안(Turndown)·자가 품질검사·
+   * 후처리 단계는 이 버전에 존재하지 않습니다. 해당 항목은 규칙대로
+   * "unknown(사유)" 로 남깁니다.
+   */
+  function 수집진단만들기(설정, 사이트키, 결과글) {
+    const 진단 = {
+      ts: new Date().toISOString(),
+      site: 사이트키,
+      path: "innerText_직접추출",
+      pathAttempted: ["innerText_직접추출"],
+      copyButtonFound:
+        "unknown(이 버전은 사이트의 복사 버튼을 쓰지 않습니다 — A안 경로 없음)",
+      clipboardReadResult:
+        "unknown(이 버전은 클립보드를 읽지 않습니다 — A안 경로 없음)",
+      documentHasFocus: "unknown(클립보드를 읽지 않아 해당 시점 자체가 없음)",
+      documentHasFocusNow: (() => {
+        try {
+          return document.hasFocus();
+        } catch (e) {
+          return "unknown(" + e.message + ")";
+        }
+      })(),
+      qualityCheck:
+        "unknown(자가 품질검사 단계 없음 — 아래 결과모양 항목이 대신하는 관찰값)",
+      qualityFailReason: "unknown(품질검사 단계 없음)",
+      fallbackFired: "unknown(폴백 단계 없음 — 경로가 하나뿐)",
+      fallbackTiming: "unknown(폴백 단계 없음)",
+      extractSelector: null,
+      extractSelectorTried: [],
+      postProcessApplied: ["trim()", "slice(0,30000)"],
+      streamComplete: null,
+      rawLength: null,
+      finalLength: null,
+      head120: null,
+      tail120: null,
+      결과모양: null,
+    };
+
+    try {
+      // 어느 선택자가 실제로 쓰였는지 (핵심 증거)
+      for (const 선택자 of 설정.답변블록 || []) {
+        진단.extractSelectorTried.push(선택자);
+        const 블록들 = document.querySelectorAll(선택자);
+        if (블록들.length) {
+          const 마지막 = 블록들[블록들.length - 1];
+          const 원시 = 마지막.innerText || "";
+          if (원시.trim()) {
+            진단.extractSelector = 선택자;
+            진단.rawLength = 원시.length;
+            진단.추출블록태그 =
+              마지막.tagName +
+              (마지막.className
+                ? "." + String(마지막.className).slice(0, 60)
+                : "");
+            // 그 블록 안에 버튼·UI 요소가 몇 개나 들어 있는지 —
+            // "선택 범위에 UI가 포함됐다"는 가설을 직접 재는 값입니다.
+            진단.블록내버튼수 = 마지막.querySelectorAll("button").length;
+            진단.블록내버튼글 = [...마지막.querySelectorAll("button")]
+              .slice(0, 8)
+              .map((b) => (b.innerText || b.getAttribute("aria-label") || "").trim())
+              .filter(Boolean);
+            break;
+          }
+        }
+      }
+
+      // 생성 완료 판정 근거
+      const 중지버튼 = 요소찾기(설정.생성중표시 || []);
+      진단.streamComplete = {
+        판정: !중지버튼,
+        근거: "중지 버튼 " + (중지버튼 ? "있음(아직 생성 중)" : "부재"),
+        사용선택자: (설정.생성중표시 || []).join(" | "),
+      };
+
+      const 글 = 결과글 || "";
+      진단.finalLength = 글.length;
+      진단.head120 = 글.slice(0, 120);
+      진단.tail120 = 글.slice(-120);
+      // 품질검사가 없으므로, 결과 "모양"만 관찰해서 남깁니다 (판정·차단 없음)
+      진단.결과모양 = {
+        코드펜스포함: /```/.test(글),
+        세로줄포함: /\|/.test(글),
+        역슬래시이스케이프수: (글.match(/\\[^\n]/g) || []).length,
+        빈줄수: (글.match(/\n\s*\n/g) || []).length,
+      };
+    } catch (e) {
+      진단.계측오류 = "unknown(" + e.message + ")";
+    }
+    return 진단;
+  }
+
   chrome.runtime.onMessage.addListener((메시지, _발신, 응답) => {
     if (메시지.종류 === "답변수집") {
       const 설정 = BRIDGE_SELECTORS[메시지.사이트];
@@ -659,14 +755,27 @@
       // 아직 쓰는 중이면 "지금은 못 준다"고 정확히 알립니다.
       // (예전에는 쓰다 만 답변을 그대로 걷어 가거나 실패로 뭉뚱그렸습니다)
       if (요소찾기(설정.생성중표시 || [])) {
-        응답({ 성공: false, 사유: "아직 답변을 쓰는 중", 생성중: true });
+        let 진단 = null;
+        try {
+          진단 = 수집진단만들기(설정, 메시지.사이트, "");
+        } catch (e) {
+          진단 = { site: 메시지.사이트, 계측오류: "unknown(" + e.message + ")" };
+        }
+        응답({ 성공: false, 사유: "아직 답변을 쓰는 중", 생성중: true, 진단 });
         return;
       }
       const 본문 = 최신답변가져오기(설정);
+      // 진단은 결과를 바꾸지 않고 옆에 얹기만 합니다.
+      let 진단 = null;
+      try {
+        진단 = 수집진단만들기(설정, 메시지.사이트, 본문);
+      } catch (e) {
+        진단 = { site: 메시지.사이트, 계측오류: "unknown(" + e.message + ")" };
+      }
       응답(
         본문
-          ? { 성공: true, 본문 }
-          : { 성공: false, 사유: "답변을 찾지 못함 (selectors.js 갱신 필요)" }
+          ? { 성공: true, 본문, 진단 }
+          : { 성공: false, 사유: "답변을 찾지 못함 (selectors.js 갱신 필요)", 진단 }
       );
       return; // 동기 응답
     }
