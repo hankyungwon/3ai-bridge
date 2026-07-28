@@ -520,6 +520,29 @@ async function 자동보관시도(답변상태) {
   await chrome.storage.local.set({ 대화기록: 기록.slice(0, 100) });
 }
 
+/* ─────────────── 진단 로그 (관찰 전용) ───────────────
+ * 수집 1회를 runId 로 묶어 chrome.storage.local 에 최근 50회만 보관합니다.
+ * 저장에 실패해도 수집 동작은 절대 멈추지 않습니다.
+ */
+function 진단아이디만들기() {
+  try {
+    return crypto.randomUUID();
+  } catch (e) {
+    return "run-" + Date.now() + "-" + Math.floor(Math.random() * 1e6);
+  }
+}
+
+async function 진단로그저장(runId, 항목들) {
+  try {
+    const { diagLog } = await chrome.storage.local.get("diagLog");
+    const 기록 = Array.isArray(diagLog) ? diagLog : [];
+    기록.unshift({ runId, ts: new Date().toISOString(), 항목들 });
+    await chrome.storage.local.set({ diagLog: 기록.slice(0, 50) });
+  } catch (e) {
+    /* 진단 저장 실패가 본동작을 막지 않게 합니다 */
+  }
+}
+
 /** 프로필과 사이트에 맞춰 최종 전송 문구를 만듭니다. */
 function 본문만들기(프로필, 사이트키, 질문) {
   if (!프로필) return 질문;
@@ -567,6 +590,9 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
     (async () => {
       const 설정 = await 설정불러오기();
       const 결과 = {};
+      // [진단 계측 전용] 수집 1회를 묶는 ID. 동작에는 쓰이지 않습니다.
+      const runId = 진단아이디만들기();
+      const 진단모음 = [];
       await Promise.all(
         설정.창순서.map(async (사이트키) => {
           const 이름 = BRIDGE_SELECTORS[사이트키].이름;
@@ -574,23 +600,57 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
             const 탭 = await 기존탭찾기(사이트키);
             if (!탭) {
               결과[사이트키] = { 이름, 성공: false, 사유: "창이 열려 있지 않음" };
+              진단모음.push({
+                runId,
+                site: 사이트키,
+                이름,
+                수집성공: false,
+                실패사유: "창이 열려 있지 않음",
+                path: "unknown(탭이 없어 수집이 시작되지 않음)",
+              });
               return;
             }
             // 한 곳만 늦게 끝나 빠지는 일이 잦아, 실패하면 몇 번 더 물어봅니다.
             // (특히 "아직 쓰는 중"일 때는 기다렸다 다시 걷는 것이 맞습니다)
             let r = null;
+            let 회차기록 = 0; // [진단 계측] 몇 번 만에 걷었는지 (동작에는 무관)
             for (let 회차 = 0; 회차 < 4; 회차++) {
+              회차기록 = 회차 + 1;
               r = await 탭에보내기(탭.id, { 종류: "답변수집", 사이트: 사이트키 });
               if (r && r.성공) break;
               if (회차 < 3) await 잠깐(r && r.생성중 ? 2500 : 800);
             }
             결과[사이트키] = Object.assign({ 이름 }, r || { 성공: false });
+            진단모음.push(
+              Object.assign(
+                {
+                  runId,
+                  site: 사이트키,
+                  이름,
+                  수집성공: !!(r && r.성공),
+                  실패사유: r && r.성공 ? "없음(수집 성공)" : (r && r.사유) || "unknown(응답 없음)",
+                  재시도횟수: 회차기록,
+                },
+                (r && r.진단) || {
+                  계측오류: "unknown(콘텐츠 스크립트가 진단을 보내지 않음)",
+                }
+              )
+            );
           } catch (e) {
             결과[사이트키] = { 이름, 성공: false, 사유: "페이지와 통신 실패" };
+            진단모음.push({
+              runId,
+              site: 사이트키,
+              이름,
+              수집성공: false,
+              실패사유: "페이지와 통신 실패: " + e.message,
+              path: "unknown(탭과 통신 실패로 수집 자체가 시작되지 않음)",
+            });
           }
         })
       );
-      응답({ 결과 });
+      await 진단로그저장(runId, 진단모음); // 실패해도 수집 결과에는 영향 없음
+      응답({ 결과, runId });
     })();
     return true;
   }
