@@ -132,6 +132,18 @@ const BRIDGE_SELECTORS = {
     ],
     첨부방식: ["paste", "input"],
     파일입력: ['input[type="file"][multiple]', 'input[type="file"]'],
+    // ── [진단 전용] 전송 계측에서만 씁니다. ──
+    // 기존 수집·회람·성공 판정 경로는 이 값을 절대 참조하지 않습니다.
+    진단: {
+      사용자말풍선: [
+        '[data-message-author-role="user"]',
+        'div[data-testid^="conversation-turn"] .whitespace-pre-wrap',
+      ],
+      첨부항목: ['[data-testid*="attachment"]', 'form [role="listitem"]'],
+      업로드중: ['[data-testid*="uploading"]', 'form [role="progressbar"]'],
+      첨부오류: ['[data-testid*="error"]', 'form [role="alert"]'],
+      첨부제거: ['button[aria-label*="Remove"]', 'button[aria-label*="제거"]'],
+    },
   },
 
   gemini: {

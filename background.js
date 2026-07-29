@@ -452,7 +452,7 @@ async function 탭에보내기(탭ID, 메시지) {
   } catch (e) {
     await chrome.scripting.executeScript({
       target: { tabId: 탭ID },
-      files: ["selectors.js", "content.js"],
+      files: ["selectors.js", "senddiag.js", "content.js"],
     });
     return await chrome.tabs.sendMessage(탭ID, 메시지);
   }
