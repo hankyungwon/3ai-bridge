@@ -1363,13 +1363,6 @@ body.설정 .더보기:not([open]) > *:not(summary) {
  * 같은 알약 테두리로 묶습니다. 앞에 작은 라벨을 붙여 무엇의 선택지인지
  * 한눈에 알 수 있게 했습니다.
  */
-body.바 .조절라벨 {
-  font-size: 11.5px;
-  color: var(--text-dim);
-  white-space: nowrap;
-  margin-right: 1px;
-  user-select: none;
-}
 body.바 .조절묶음 {
   display: inline-flex;
   align-items: stretch;
@@ -1413,4 +1406,29 @@ body.바 .조절묶음 .서체버튼.선택됨 {
 /* 정렬 버튼은 창 전환 알약에서 조금 떨어뜨려 "다른 일"임을 보이게 */
 body.바 #창정리버튼 {
   margin-left: 10px;
+}
+
+
+/* ── v1.21 글꼴 드롭다운 ──
+ * "또렷"·"고정폭" 같은 뜻 모를 말을 없애고 글꼴 이름을 직접 고르게 합니다.
+ * 크기 알약과 높이·모서리를 맞춰 한 줄로 보이게 했습니다.
+ */
+body.바 .글꼴선택 {
+  width: auto;
+  max-width: 190px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  line-height: 1.2;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+body.바 .글꼴선택:hover {
+  background: var(--btn-2nd-hover);
+}
+body.바 .글꼴선택:focus {
+  outline: none;
+  border-color: var(--accent);
 }

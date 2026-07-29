@@ -67,13 +67,57 @@ async function 초기화() {
 const 글자크기단계 = [15, 17, 19, 21];
 const 기본글자크기 = 17;
 const FONT_LOAD_TIMEOUT_MS = 2000; // 서체 로딩 대기 한도 (조정 가능)
-const 서체정의 = {
-  기본: { css: "", 로드이름: null },
-  가독형: { css: "가독형", 로드이름: "Pretendard" },
-  고정폭: { css: "고정폭", 로드이름: "D2Coding" },
-};
-let 현재서체 = "기본";
-let 서체요청토큰 = 0; // 연속 클릭·늦은 완료를 가려내는 표식
+/**
+ * 글꼴 목록 — "또렷"·"고정폭" 같은 뜻 모를 말 대신 글꼴 이름을 그대로 씁니다.
+ * 이 컴퓨터에 실제로 있는 글꼴만 목록에 나옵니다(없는 것을 골라 봐야
+ * 아무 일도 안 일어나므로). 번들 글꼴 두 개는 확장에 들어 있어 항상 나옵니다.
+ */
+const 글꼴후보 = [
+  { 이름: "시스템 기본", css: "", 번들: null },
+  // 맥
+  { 이름: "애플 SD 산돌고딕Neo", css: '"Apple SD Gothic Neo"', 검사: "Apple SD Gothic Neo" },
+  { 이름: "애플 명조", css: '"AppleMyungjo"', 검사: "AppleMyungjo" },
+  // 윈도우
+  { 이름: "맑은 고딕", css: '"Malgun Gothic"', 검사: "Malgun Gothic" },
+  { 이름: "굴림", css: '"Gulim"', 검사: "Gulim" },
+  { 이름: "바탕", css: '"Batang"', 검사: "Batang" },
+  { 이름: "돋움", css: '"Dotum"', 검사: "Dotum" },
+  // 공통(설치돼 있으면)
+  { 이름: "나눔고딕", css: '"NanumGothic","Nanum Gothic"', 검사: "NanumGothic" },
+  // 확장에 들어 있는 글꼴 (항상 사용 가능)
+  { 이름: "프리텐다드 (넓고 또렷)", css: '"Pretendard"', 번들: "Pretendard" },
+  { 이름: "D2Coding (글자 폭이 모두 같음)", css: '"D2Coding"', 번들: "D2Coding" },
+];
+let 현재글꼴 = "";
+let 서체요청토큰 = 0; // 연속 선택·늦은 완료를 가려내는 표식
+
+/**
+ * 이 컴퓨터에 그 글꼴이 실제로 있는지 확인합니다.
+ * 같은 글자를 기준 글꼴과 후보 글꼴로 각각 재어, 폭이 다르면 있는 것입니다.
+ */
+function 글꼴있나(이름) {
+  try {
+    const 캔버스 = document.createElement("canvas");
+    const 그리기 = 캔버스.getContext("2d");
+    const 표본 = "가나다ABC123";
+    const 재기 = (family) => {
+      그리기.font = '72px ' + family;
+      return 그리기.measureText(표본).width;
+    };
+    const 기준 = ["monospace", "serif", "sans-serif"];
+    return 기준.some((기본) => 재기(`"${이름}", ${기본}`) !== 재기(기본));
+  } catch (e) {
+    return false;
+  }
+}
+
+/** 옛 설정값(기본/가독형/고정폭)을 새 값으로 옮깁니다. */
+function 옛설정옮기기(값) {
+  if (값 === "기본") return "";
+  if (값 === "가독형") return '"Pretendard"';
+  if (값 === "고정폭") return '"D2Coding"';
+  return 값;
+}
 
 /** 키 하나만 읽어 옵니다. 없거나 형식이 어긋나면 기본값. */
 async function 표시설정읽기(키, 기본값, 검증) {
@@ -102,21 +146,6 @@ async function 글자크기적용(px, 저장할까 = true) {
   }
 }
 
-function 서체버튼표시(이름) {
-  document.querySelectorAll(".서체버튼").forEach((b) => {
-    b.classList.toggle("선택됨", b.dataset.서체 === 이름);
-  });
-}
-
-/** 입력창에 서체 클래스만 갈아 끼웁니다 (요소 재생성 없음). */
-function 서체클래스적용(이름) {
-  const 질문칸 = document.getElementById("질문");
-  질문칸.classList.remove("가독형", "고정폭");
-  const css = (서체정의[이름] || {}).css;
-  if (css) 질문칸.classList.add(css);
-  현재서체 = 이름;
-}
-
 function 서체안내표시(글) {
   const 상자 = document.getElementById("서체안내");
   상자.textContent = 글;
@@ -125,15 +154,17 @@ function 서체안내표시(글) {
 }
 
 /**
- * 서체 전환 — 지시서의 순서를 그대로 따릅니다.
- * 선로드 방식이므로 font-display 에 의존하지 않습니다.
+ * 글꼴 전환.
+ * 확장에 들어 있는 글꼴은 다 불러온 뒤에 적용합니다(반쪽만 보이는 일 방지).
+ * 실패하면 쓰던 글꼴을 그대로 두고 알려 줍니다.
  */
-async function 서체전환(이름) {
-  const 내토큰 = ++서체요청토큰; // 1. 토큰 증가·보관
+async function 글꼴전환(css값) {
+  const 내토큰 = ++서체요청토큰;
   const 질문칸 = document.getElementById("질문");
-  const 이전서체 = 현재서체;
+  const 이전 = 현재글꼴;
+  const 후보 = 글꼴후보.find((f) => f.css === css값);
 
-  // 2. 커서·선택 영역·스크롤·포커스 보존
+  // 커서·선택 영역·스크롤·포커스 보존
   const 상태 = {
     start: 질문칸.selectionStart,
     end: 질문칸.selectionEnd,
@@ -141,43 +172,32 @@ async function 서체전환(이름) {
     포커스: document.activeElement === 질문칸,
   };
 
-  서체버튼표시(이름); // 눌린 느낌을 먼저 (실패 시 원복)
-
-  const 정의 = 서체정의[이름];
-  if (정의 && 정의.로드이름) {
+  if (후보 && 후보.번들) {
     try {
-      // 3. 실제 로드 + 타임아웃
       const 크기 = 질문칸.style.fontSize || 기본글자크기 + "px";
-      const 로딩 = document.fonts.load(
-        `${크기} "${정의.로드이름}"`,
-        "가나다 ABC 123 → {} []"
-      );
       const 결과 = await Promise.race([
-        로딩,
+        document.fonts.load(`${크기} "${후보.번들}"`, "가나다 ABC 123"),
         new Promise((_, 거절) =>
           setTimeout(() => 거절(new Error("timeout")), FONT_LOAD_TIMEOUT_MS)
         ),
       ]);
-      // 4. 반환 배열에 대상 FontFace 가 실제로 있는지 확인
       const 있음 =
         Array.isArray(결과) &&
-        결과.some((f) => f && f.family && f.family.includes(정의.로드이름));
+        결과.some((f) => f && f.family && f.family.includes(후보.번들));
       if (!있음) throw new Error("not-loaded");
     } catch (e) {
-      // 7. 실패·타임아웃 → 기존 서체 유지, 버튼 원복, 안내, 저장 안 함
       if (내토큰 === 서체요청토큰) {
-        서체버튼표시(이전서체);
-        서체안내표시("서체를 불러오지 못했습니다");
+        document.getElementById("글꼴선택").value = 이전;
+        서체안내표시("글꼴을 불러오지 못했습니다");
       }
       return;
     }
   }
 
-  // 6. 늦게 끝난 이전 요청이면 결과를 버립니다 (저장도 하지 않음)
-  if (내토큰 !== 서체요청토큰) return;
+  if (내토큰 !== 서체요청토큰) return; // 늦게 끝난 이전 요청은 버립니다
 
-  // 5. 기존 요소의 CSS 만 변경 → 다음 프레임에서 상태 복원 → 그 뒤 저장
-  서체클래스적용(이름);
+  질문칸.style.fontFamily = css값 || "";
+  현재글꼴 = css값;
   requestAnimationFrame(() => {
     질문칸.scrollTop = 상태.scrollTop;
     if (상태.포커스) {
@@ -185,14 +205,27 @@ async function 서체전환(이름) {
       try {
         질문칸.setSelectionRange(상태.start, 상태.end);
       } catch (e) {
-        /* 값이 범위를 벗어나면 무시 */
+        /* 범위를 벗어나면 무시 */
       }
     }
   });
   try {
-    await chrome.storage.local.set({ inputFontFamily: 이름 });
+    await chrome.storage.local.set({ inputFontFamily: css값 });
   } catch (e) {
     /* 저장 실패는 표시에 영향 주지 않음 */
+  }
+}
+
+/** 이 컴퓨터에 있는 글꼴만 골라 목록을 채웁니다. */
+function 글꼴목록채우기() {
+  const 선택 = document.getElementById("글꼴선택");
+  선택.innerHTML = "";
+  for (const f of 글꼴후보) {
+    if (f.css && !f.번들 && f.검사 && !글꼴있나(f.검사)) continue; // 없는 글꼴은 감춤
+    const opt = document.createElement("option");
+    opt.value = f.css;
+    opt.textContent = f.이름;
+    선택.appendChild(opt);
   }
 }
 
@@ -217,17 +250,16 @@ async function 표시설정초기화() {
   );
   await 글자크기적용(크기, false);
 
-  const 서체 = await 표시설정읽기(
-    "inputFontFamily",
-    "기본",
-    (v) => typeof v === "string" && Object.prototype.hasOwnProperty.call(서체정의, v)
+  글꼴목록채우기();
+  const 저장된글꼴 = 옛설정옮기기(
+    await 표시설정읽기("inputFontFamily", "", (v) => typeof v === "string")
   );
-  // 저장돼 있던 서체는 조용히 선로드한 뒤 적용 (실패하면 기본 유지)
-  if (서체 !== "기본") {
-    서체전환(서체);
-  } else {
-    서체버튼표시("기본");
-  }
+  const 선택 = document.getElementById("글꼴선택");
+  // 목록에 없는 값(글꼴을 지웠거나 다른 컴퓨터에서 저장한 값)이면 기본으로
+  const 있음 = [...선택.options].some((o) => o.value === 저장된글꼴);
+  선택.value = 있음 ? 저장된글꼴 : "";
+  if (선택.value) 글꼴전환(선택.value);
+  선택.addEventListener("change", () => 글꼴전환(선택.value));
 
   const 고대비 = await 표시설정읽기(
     "highContrast",
@@ -251,9 +283,6 @@ async function 표시설정초기화() {
     const 지금 = parseInt(document.getElementById("글자크기표시").textContent, 10);
     const i = 글자크기단계.indexOf(지금);
     if (i >= 0 && i < 글자크기단계.length - 1) await 글자크기적용(글자크기단계[i + 1]);
-  });
-  document.querySelectorAll(".서체버튼").forEach((b) => {
-    b.addEventListener("click", () => 서체전환(b.dataset.서체));
   });
   document.getElementById("고대비토글").addEventListener("click", () => {
     고대비적용(!document.body.classList.contains("고대비"));
