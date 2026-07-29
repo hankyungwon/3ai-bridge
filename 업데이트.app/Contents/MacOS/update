@@ -1,0 +1,50 @@
+#!/bin/bash
+# ============================================================
+# 업데이트.app — 맥용 원클릭 업데이트 (더블클릭만 하면 끝)
+#
+# .command 파일은 맥이 붙이는 "격리 표시" 때문에 더블클릭이 막히는 일이
+# 잦습니다. 앱 묶음(.app)은 그 문제가 없어 이 방식을 기본으로 둡니다.
+# 터미널 창도 뜨지 않고, 끝나면 알림창 하나만 보여 줍니다.
+# ============================================================
+
+# 이 앱은 설치 폴더 안(3ai-bridge/업데이트.app)에 있습니다.
+# Contents/MacOS 에서 세 단계 위가 설치 폴더입니다.
+HERE="$(cd "$(dirname "$0")/../../.." && pwd)"
+cd "$HERE" || exit 1
+
+notify() {
+  /usr/bin/osascript -e "display dialog \"$1\" buttons {\"확인\"} default button 1 with title \"AI 3대장 카페\"" >/dev/null 2>&1
+}
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+if ! /usr/bin/curl -sSL -o "$tmp/main.zip" \
+    "https://github.com/hankyungwon/3ai-bridge/archive/refs/heads/main.zip"; then
+  notify "인터넷에서 최신 버전을 내려받지 못했습니다.\n\n네트워크를 확인한 뒤 다시 시도해 주세요."
+  exit 1
+fi
+
+# 맥 기본 도구(ditto)가 한글 파일 이름을 정확히 풀어 줍니다.
+if ! /usr/bin/ditto -x -k "$tmp/main.zip" "$tmp" 2>/dev/null; then
+  notify "내려받은 파일을 푸는 데 실패했습니다.\n\n잠시 뒤 다시 시도해 주세요."
+  exit 1
+fi
+
+if [ ! -d "$tmp/3ai-bridge-main" ]; then
+  notify "내려받은 파일 안에서 프로그램을 찾지 못했습니다."
+  exit 1
+fi
+
+# 실행 중인 자기 자신을 덮어써도 문제없도록, 앱 묶음은 따로 갱신합니다.
+cp -R "$tmp/3ai-bridge-main/." "$HERE/" 2>/dev/null
+
+# 실행 권한과 격리 표시 정리 — 다음 번에도 더블클릭이 되게 합니다.
+chmod +x "$HERE/업데이트.app/Contents/MacOS/update" 2>/dev/null
+chmod +x "$HERE/카페열기.app/Contents/MacOS/cafe" 2>/dev/null
+chmod +x "$HERE/업데이트.command" 2>/dev/null
+/usr/bin/xattr -dr com.apple.quarantine "$HERE" 2>/dev/null
+
+VER=$(/usr/bin/grep -o '"version"[^,]*' "$HERE/manifest.json" | /usr/bin/head -1 | /usr/bin/cut -d'"' -f4)
+
+notify "업데이트 완료 — 버전 $VER\n\n이제 크롬에서 chrome://extensions 를 열고\n'AI 3대장 카페' 카드의 새로고침(⟳)을 한 번 눌러 주세요."
