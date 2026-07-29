@@ -2,25 +2,89 @@
 # ============================================================
 # 업데이트.app — 맥용 원클릭 업데이트 (더블클릭만 하면 끝)
 #
-# .command 파일은 맥이 붙이는 "격리 표시" 때문에 더블클릭이 막히는 일이
-# 잦습니다. 앱 묶음(.app)은 그 문제가 없어 이 방식을 기본으로 둡니다.
-# 터미널 창도 뜨지 않고, 끝나면 알림창 하나만 보여 줍니다.
+# ★ 설치 폴더를 "앱이 놓인 자리"로 판단하지 않습니다. ★
+#   맥은 격리 표시가 붙은 앱을 실행할 때 임시 폴더의 사본으로 돌립니다
+#   (App Translocation). 그러면 앱이 보는 자기 위치가 임시 폴더라,
+#   거기에 업데이트를 쓰고 진짜 폴더는 그대로 남습니다.
+#   "완료 메시지는 뜨는데 아무것도 안 바뀌던" 원인이 이것이었습니다.
+#
+#   그래서 (1) 기억해 둔 폴더 → (2) 앱 옆 → (3) 흔한 위치 순으로 찾고,
+#   그래도 못 찾으면 폴더를 직접 고르게 합니다. 고른 폴더는 기억합니다.
+#   그리고 끝나기 전에 버전을 다시 읽어 "정말 바뀌었는지" 확인합니다.
 # ============================================================
 
-# 이 앱은 설치 폴더 안(3ai-bridge/업데이트.app)에 있습니다.
-# Contents/MacOS 에서 세 단계 위가 설치 폴더입니다.
-HERE="$(cd "$(dirname "$0")/../../.." && pwd)"
-cd "$HERE" || exit 1
+MEMO="$HOME/Library/Application Support/ai3cafe/설치폴더.txt"
 
 notify() {
   /usr/bin/osascript -e "display dialog \"$1\" buttons {\"확인\"} default button 1 with title \"AI 3대장 카페\"" >/dev/null 2>&1
 }
 
-tmp=$(mktemp -d)
+# 그 폴더가 정말 이 확장의 설치 폴더인가 (표시가 되는 파일 두 개로 확인)
+is_install_dir() {
+  [ -f "$1/manifest.json" ] && [ -f "$1/popup.js" ]
+}
+
+read_version() {
+  /usr/bin/grep -o '"version"[^,]*' "$1/manifest.json" 2>/dev/null |
+    /usr/bin/head -1 | /usr/bin/cut -d'"' -f4
+}
+
+# ── 1) 설치 폴더 찾기 ──────────────────────────────────────
+TARGET=""
+
+# (1) 지난번에 기억해 둔 폴더
+if [ -f "$MEMO" ]; then
+  saved="$(/bin/cat "$MEMO" 2>/dev/null)"
+  if is_install_dir "$saved"; then TARGET="$saved"; fi
+fi
+
+# (2) 앱이 놓인 자리 (격리 표시가 없으면 여기가 맞습니다)
+if [ -z "$TARGET" ]; then
+  beside="$(cd "$(/usr/bin/dirname "$0")/../../.." 2>/dev/null && pwd)"
+  # 임시 사본에서 도는 중이면 그 자리는 쓰지 않습니다.
+  case "$beside" in
+    */AppTranslocation/* | /private/var/folders/*) ;;
+    *) if is_install_dir "$beside"; then TARGET="$beside"; fi ;;
+  esac
+fi
+
+# (3) 흔히 두는 자리들
+if [ -z "$TARGET" ]; then
+  for cand in \
+    "$HOME/Documents/3ai-bridge" \
+    "$HOME/Documents/3ai-bridge-main" \
+    "$HOME/Desktop/3ai-bridge" \
+    "$HOME/Downloads/3ai-bridge" \
+    "$HOME/3ai-bridge"; do
+    if is_install_dir "$cand"; then TARGET="$cand"; break; fi
+  done
+fi
+
+# (4) 그래도 못 찾으면 직접 고르게 합니다
+if [ -z "$TARGET" ]; then
+  picked=$(/usr/bin/osascript -e 'try
+    set f to choose folder with prompt "AI 3대장 카페가 설치된 폴더를 골라 주세요 (manifest.json 이 들어 있는 폴더)"
+    POSIX path of f
+  on error
+    return ""
+  end try' 2>/dev/null)
+  picked="${picked%/}"
+  if [ -n "$picked" ] && is_install_dir "$picked"; then
+    TARGET="$picked"
+  else
+    notify "설치 폴더를 찾지 못했습니다.\n\nmanifest.json 이 들어 있는 폴더를 골라 주셔야 합니다.\n(보통 서류 폴더 안의 3ai-bridge)"
+    exit 1
+  fi
+fi
+
+before="$(read_version "$TARGET")"
+
+# ── 2) 최신 버전 내려받아 덮어쓰기 ─────────────────────────
+tmp=$(/usr/bin/mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 if ! /usr/bin/curl -sSL -o "$tmp/main.zip" \
-    "https://github.com/hankyungwon/3ai-bridge/archive/refs/heads/main.zip"; then
+  "https://github.com/hankyungwon/3ai-bridge/archive/refs/heads/main.zip"; then
   notify "인터넷에서 최신 버전을 내려받지 못했습니다.\n\n네트워크를 확인한 뒤 다시 시도해 주세요."
   exit 1
 fi
@@ -36,15 +100,32 @@ if [ ! -d "$tmp/3ai-bridge-main" ]; then
   exit 1
 fi
 
-# 실행 중인 자기 자신을 덮어써도 문제없도록, 앱 묶음은 따로 갱신합니다.
-cp -R "$tmp/3ai-bridge-main/." "$HERE/" 2>/dev/null
+if ! /bin/cp -R "$tmp/3ai-bridge-main/." "$TARGET/" 2>/dev/null; then
+  notify "폴더에 쓰지 못했습니다. 권한을 확인해 주세요.\n\n폴더: $TARGET"
+  exit 1
+fi
 
-# 실행 권한과 격리 표시 정리 — 다음 번에도 더블클릭이 되게 합니다.
-chmod +x "$HERE/업데이트.app/Contents/MacOS/update" 2>/dev/null
-chmod +x "$HERE/카페열기.app/Contents/MacOS/cafe" 2>/dev/null
-chmod +x "$HERE/업데이트.command" 2>/dev/null
-/usr/bin/xattr -dr com.apple.quarantine "$HERE" 2>/dev/null
+# 실행 권한과 격리 표시 정리 — 다음 번에도 더블클릭이 되게, 그리고
+# 임시 사본에서 도는 일이 다시 생기지 않게 합니다.
+/bin/chmod +x "$TARGET/업데이트.app/Contents/MacOS/update" 2>/dev/null
+/bin/chmod +x "$TARGET/카페열기.app/Contents/MacOS/cafe" 2>/dev/null
+/bin/chmod +x "$TARGET/업데이트.command" 2>/dev/null
+/usr/bin/xattr -dr com.apple.quarantine "$TARGET" 2>/dev/null
 
-VER=$(/usr/bin/grep -o '"version"[^,]*' "$HERE/manifest.json" | /usr/bin/head -1 | /usr/bin/cut -d'"' -f4)
+# 다음 실행을 위해 이 폴더를 기억해 둡니다.
+/bin/mkdir -p "$(/usr/bin/dirname "$MEMO")" 2>/dev/null
+/bin/echo "$TARGET" > "$MEMO" 2>/dev/null
 
-notify "업데이트 완료 — 버전 $VER\n\n이제 크롬에서 chrome://extensions 를 열고\n'AI 3대장 카페' 카드의 새로고침(⟳)을 한 번 눌러 주세요."
+# ── 3) 정말 바뀌었는지 확인하고 알립니다 ───────────────────
+after="$(read_version "$TARGET")"
+
+if [ -z "$after" ]; then
+  notify "업데이트를 마쳤지만 버전을 확인하지 못했습니다.\n\n폴더: $TARGET"
+  exit 1
+fi
+
+if [ "$before" = "$after" ]; then
+  notify "이미 최신입니다 — 버전 $after\n\n폴더: $TARGET\n\n크롬에 반영이 안 돼 있다면 chrome://extensions 에서\n'AI 3대장 카페' 카드의 새로고침(⟳)을 눌러 주세요."
+else
+  notify "업데이트 완료 — $before → $after\n\n폴더: $TARGET\n\n이제 크롬에서 chrome://extensions 를 열고\n'AI 3대장 카페' 카드의 새로고침(⟳)을 한 번 눌러 주세요."
+fi
