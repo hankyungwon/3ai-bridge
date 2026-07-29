@@ -24,6 +24,19 @@ is_install_dir() {
   [ -f "$1/manifest.json" ] && [ -f "$1/popup.js" ]
 }
 
+# ★ 파일이 "있다"와 "읽을 수 있다"는 다릅니다. ★
+#   맥은 서류·바탕화면·다운로드 폴더를 보호합니다(파일 및 폴더 권한).
+#   허용을 한 번 거부하면, 파일이 있는지는 보이지만 열지는 못하는 상태가
+#   됩니다. 그러면 버전도 못 읽고 복사도 조용히 실패합니다.
+#   그래서 "실제로 읽히는지"를 따로 확인합니다.
+can_read_dir() {
+  [ -r "$1/manifest.json" ] && [ -n "$(/bin/cat "$1/manifest.json" 2>/dev/null)" ]
+}
+
+권한안내() {
+  notify "맥이 이 폴더의 파일을 열지 못하게 막고 있습니다.\n\n폴더: $1\n\n[해결 방법 1] 권한 허용\n  시스템 설정 → 개인정보 보호 및 보안 → 파일 및 폴더\n  → '3대장 업데이트' 의 '서류 폴더' 스위치를 켜 주세요.\n  목록에 없으면 '전체 디스크 접근 권한' 에 이 앱을 추가하세요.\n\n[해결 방법 2] 보호되지 않는 곳으로 옮기기 (더 간단)\n  Finder 에서 3ai-bridge 폴더를 사용자 폴더 바로 아래\n  (집 모양 아이콘, 예: /Users/$(/usr/bin/whoami)/3ai-bridge) 로 옮긴 뒤\n  크롬에서 확장을 그 폴더로 다시 불러오면 됩니다.\n  서류·바탕화면·다운로드 밖은 이런 제한이 없습니다."
+}
+
 read_version() {
   /usr/bin/grep -o '"version"[^,]*' "$1/manifest.json" 2>/dev/null |
     /usr/bin/head -1 | /usr/bin/cut -d'"' -f4
@@ -75,6 +88,12 @@ if [ -z "$TARGET" ]; then
     notify "설치 폴더를 찾지 못했습니다.\n\nmanifest.json 이 들어 있는 폴더를 골라 주셔야 합니다.\n(보통 서류 폴더 안의 3ai-bridge)"
     exit 1
   fi
+fi
+
+# 찾은 폴더를 정말 읽을 수 있는지 먼저 확인합니다.
+if ! can_read_dir "$TARGET"; then
+  권한안내 "$TARGET"
+  exit 1
 fi
 
 before="$(read_version "$TARGET")"
@@ -154,7 +173,8 @@ fi
 after="$(read_version "$TARGET")"
 
 if [ -z "$after" ]; then
-  notify "업데이트를 마쳤지만 버전을 확인하지 못했습니다.\n\n폴더: $TARGET"
+  # 여기까지 왔는데 버전을 못 읽으면 거의 언제나 권한 문제입니다.
+  권한안내 "$TARGET"
   exit 1
 fi
 
