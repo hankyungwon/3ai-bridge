@@ -40,8 +40,7 @@
         </div>
         <!-- 표시 조절 바: 아래 입력칸의 글자만 바꿉니다 (AI 창 글자는 그대로) -->
         <div class="제어줄 표시조절바">
-          <!-- 글자 크기: 위 창 전환처럼 하나의 알약으로 묶어 한 덩어리로 보이게 -->
-          <span class="조절라벨">글자</span>
+          <!-- 글자 크기: 위 창 전환처럼 하나의 알약으로 묶어 한 덩어리로 -->
           <span class="조절묶음" title="입력칸 글자 크기">
             <button id="글자작게" class="조절버튼" title="한 단계 작게">A−</button>
             <button
@@ -54,17 +53,8 @@
             <button id="글자크게" class="조절버튼" title="한 단계 크게">A+</button>
           </span>
 
-          <!-- 글꼴: 같은 알약 모양. "기본"이 크기의 기본으로 오해되지 않도록
-               글꼴 이름 자체로 바꿨습니다. -->
-          <span class="조절라벨">글꼴</span>
-          <span class="조절묶음" title="입력칸 글꼴">
-            <button id="서체기본" class="조절버튼 서체버튼" data-서체="기본"
-              title="맥·윈도우가 원래 쓰는 글꼴">시스템</button>
-            <button id="서체가독" class="조절버튼 서체버튼" data-서체="가독형"
-              title="획이 굵고 자간이 넓어 눈이 덜 피로한 글꼴 (Pretendard)">또렷</button>
-            <button id="서체고정" class="조절버튼 서체버튼" data-서체="고정폭"
-              title="모든 글자 폭이 같아 코드·표를 읽기 좋은 글꼴 (D2Coding)">고정폭</button>
-          </span>
+          <!-- 글꼴: 이름을 직접 고릅니다. 이 컴퓨터에 실제로 있는 글꼴만 나옵니다. -->
+          <select id="글꼴선택" class="글꼴선택" title="입력칸 글꼴"></select>
 
           <button id="고대비토글" class="보조"
             title="켜면 입력칸 글자가 더 밝아지고 배경이 더 어두워집니다 (밝은 곳에서 읽기 좋게)">고대비</button>
