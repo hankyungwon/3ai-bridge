@@ -14,7 +14,24 @@
     <div class="바그리드">
       <!-- ── 왼쪽: 작성 카드 — 입력과 전송뿐, 군더더기 없음 ── -->
       <div class="작성칸">
-        <span class="프롬프트기호">❯</span>
+        <!-- 프롬프트 표식 — 확장 아이콘의 삼지창을 그대로 작게 옮겼습니다.
+             세 갈래가 곧 제비·참새·하마 셋입니다.
+             글자가 아니라 도형이라 어떤 글꼴에서도 같은 모양으로 보입니다. -->
+        <span class="프롬프트기호" aria-hidden="true">
+          <svg viewBox="0 0 20 26" width="14" height="18" fill="none"
+               stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round">
+            <!-- 세 갈래를 받치는 초승달 -->
+            <path d="M3.2 9.4 Q10 14.2 16.8 9.4" />
+            <!-- 좌우 갈래 -->
+            <path d="M3.2 3.4 V9.4" />
+            <path d="M16.8 3.4 V9.4" />
+            <!-- 가운데 창날에서 자루까지 -->
+            <path d="M10 1.6 V23.4" />
+            <!-- 자루의 가로 매듭 -->
+            <path d="M7 17.2 H13" />
+          </svg>
+        </span>
         <div class="작성본문">
           <div id="첨부줄" class="첨부줄 숨김"></div>
           <div class="입력겹침">
