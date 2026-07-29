@@ -767,6 +767,12 @@ const 작성칸요소 = document.querySelector(".작성칸");
 });
 // Enter = 바로 전송, Shift+Enter = 줄바꿈 (채팅 앱과 같은 방식)
 document.getElementById("질문").addEventListener("keydown", (e) => {
+  // ★ 한글을 조합하는 중에는 Enter 를 전송으로 받지 않습니다. ★
+  // 빠르게 치면 마지막 글자가 아직 조합 중인 상태에서 Enter 가 눌립니다.
+  // 그때 전송하면 마지막 글자가 빠진 채 나가고, 뒤늦게 확정된 글자가
+  // 입력칸에 남아 한 번 더 누르게 되어 전송이 겹쳤습니다.
+  // 조합 중 Enter 는 "글자 확정"이므로 흘려보내고, 확정된 뒤의 Enter 만 받습니다.
+  if (e.isComposing || e.keyCode === 229) return;
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     전송();
