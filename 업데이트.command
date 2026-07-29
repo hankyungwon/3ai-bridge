@@ -31,7 +31,10 @@ cp -R "$tmp/3ai-bridge-main/." .
 # 이 스크립트와 바로가기 앱의 실행 권한을 유지하고,
 # 맥이 붙이는 격리 표시(보안 경고의 원인)를 걷어냅니다.
 chmod +x "$0" "카페열기.app/Contents/MacOS/cafe" 2>/dev/null || true
-xattr -dr com.apple.quarantine "카페열기.app" 2>/dev/null || true
+chmod +x "업데이트.app/Contents/MacOS/update" 2>/dev/null || true
+# 폴더 전체의 격리 표시를 걷어냅니다.
+# (이 표시 때문에 다음 번 더블클릭이 막히는 일이 잦았습니다)
+xattr -dr com.apple.quarantine . 2>/dev/null || true
 
 echo ""
 echo "업데이트 완료!"
