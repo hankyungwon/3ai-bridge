@@ -982,27 +982,20 @@ body.바 .작성칸 button.주요:disabled {
   background-color: var(--btn-2nd-active);
   color: var(--text-dim);
 }
-/* 2차: 새 대화 · 답변 모으기 */
-body.바 #새대화버튼,
-body.바 #모으기버튼 {
-  background-color: var(--btn-2nd);
-  border-color: transparent;
-  color: var(--text);
-}
-body.바 #새대화버튼:hover,
-body.바 #모으기버튼:hover {
-  background-color: var(--btn-2nd-hover);
-  border-color: transparent;
-  color: var(--text);
-}
-body.바 #새대화버튼:active,
-body.바 #모으기버튼:active {
-  background-color: var(--btn-2nd-active);
-}
-/* 3차: 첨부 · 정렬 · 이력 · 설정 (배경 투명 유지) */
+/* 제어줄 버튼은 모두 같은 격입니다.
+ * 예전에는 "새 대화"와 "세 답변 복사"만 밝게 칠해 두었는데,
+ * 그렇게 강조할 근거가 없어(더 자주 쓰는 것도, 되돌릴 수 없는 것도 아님)
+ * 없앴습니다. 강조는 입력칸의 "전송" 하나뿐입니다. */
+
+/* 제어줄·작성줄의 보조 버튼은 모두 같은 격(배경 투명)입니다.
+ * 예전에는 "새 대화"와 "세 답변 복사"만 옛 색이 남아 밝게 칠해져 있었는데,
+ * 그렇게 강조할 근거가 없어(더 자주 쓰지도, 되돌릴 수 없지도 않음) 없앴습니다.
+ * 강조는 입력칸의 "전송" 하나뿐입니다. */
 body.바 #첨부버튼,
 body.바 #창정리버튼,
 body.바 #이력토글,
+body.바 #새대화버튼,
+body.바 #모으기버튼,
 body.바 .보조설정 {
   background-color: transparent;
   border-color: transparent;
@@ -1011,6 +1004,8 @@ body.바 .보조설정 {
 body.바 #첨부버튼:hover,
 body.바 #창정리버튼:hover,
 body.바 #이력토글:hover,
+body.바 #새대화버튼:hover,
+body.바 #모으기버튼:hover,
 body.바 .보조설정:hover {
   background-color: transparent;
   border-color: transparent;
@@ -1334,4 +1329,30 @@ body.바 .제어칸 {
 }
 body.바 .제어줄 {
   gap: 10px;
+}
+
+
+/* ── v1.19.1 설정 화면: 자주 안 쓰는 항목은 접어 둡니다 ── */
+body.설정 .더보기 {
+  margin: 26px 0 8px;
+  border-top: 1px solid #e2e5ea;
+  padding-top: 14px;
+}
+body.설정 .더보기 > summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: #555;
+  padding: 6px 0;
+  user-select: none;
+}
+body.설정 .더보기 > summary:hover {
+  color: #111;
+}
+body.설정 .더보기[open] > summary {
+  margin-bottom: 6px;
+}
+/* 접혀 있을 때는 안쪽 내용을 확실히 감춥니다.
+   (브라우저 기본 처리에만 맡기면 일부 환경에서 그대로 보였습니다) */
+body.설정 .더보기:not([open]) > *:not(summary) {
+  display: none;
 }
