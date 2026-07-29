@@ -82,8 +82,11 @@ const 글꼴후보 = [
   { 이름: "굴림", css: '"Gulim"', 검사: "Gulim" },
   { 이름: "바탕", css: '"Batang"', 검사: "Batang" },
   { 이름: "돋움", css: '"Dotum"', 검사: "Dotum" },
+  { 이름: "궁서", css: '"Gungsuh"', 검사: "Gungsuh" },
   // 공통(설치돼 있으면)
   { 이름: "나눔고딕", css: '"NanumGothic","Nanum Gothic"', 검사: "NanumGothic" },
+  { 이름: "나눔명조", css: '"NanumMyeongjo","Nanum Myeongjo"', 검사: "NanumMyeongjo" },
+  { 이름: "본고딕 (Noto Sans KR)", css: '"Noto Sans KR"', 검사: "Noto Sans KR" },
   // 확장에 들어 있는 글꼴 (항상 사용 가능)
   { 이름: "프리텐다드 (넓고 또렷)", css: '"Pretendard"', 번들: "Pretendard" },
   { 이름: "D2Coding (글자 폭이 모두 같음)", css: '"D2Coding"', 번들: "D2Coding" },

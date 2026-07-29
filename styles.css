@@ -1432,3 +1432,54 @@ body.바 .글꼴선택:focus {
   outline: none;
   border-color: var(--accent);
 }
+
+
+/* ── v1.21.1 좁은 화면(노트북) 대응 ──
+ * 명령바는 화면 폭 전체를 차지하므로, 14인치 노트북에서는 세 칸이 서로
+ * 자리를 다툽니다. 지금까지는 입력칸만 계속 줄어 1280px 에서 270px,
+ * 1024px 에서 118px 까지 좁아졌습니다. 정작 가장 많이 쓰는 칸인데도요.
+ * 그래서 좁아질수록 "덜 중요한 것부터" 양보하게 합니다.
+ */
+
+/* 1600px 아래: 오른쪽 미니 이력을 줄이고 글꼴 목록도 좁힙니다 */
+@media (max-width: 1600px) {
+  body.바 .바그리드 {
+    grid-template-columns: 1.7fr auto 0.75fr;
+    gap: 16px;
+  }
+  body.바 .글꼴선택 {
+    max-width: 150px;
+  }
+}
+
+/* 1200px 아래: 미니 이력을 감춥니다.
+   (이력은 '이력' 버튼으로 언제든 전체를 볼 수 있어 잃는 것이 적습니다) */
+@media (max-width: 1200px) {
+  body.바 .바그리드 {
+    grid-template-columns: 1fr auto;
+    gap: 14px;
+  }
+  body.바 .미니이력 {
+    display: none;
+  }
+  body.바 .글꼴선택 {
+    max-width: 128px;
+  }
+  body.바 .제어줄 {
+    gap: 8px;
+  }
+}
+
+/* 1050px 아래: 버튼 여백을 더 좁혀 입력칸을 지킵니다 */
+@media (max-width: 1050px) {
+  body.바 button.보조,
+  body.바 .조절묶음 .조절버튼 {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  body.바 .글꼴선택 {
+    max-width: 110px;
+    padding-left: 8px;
+    padding-right: 6px;
+  }
+}
