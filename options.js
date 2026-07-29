@@ -278,3 +278,49 @@ document.getElementById("로그비우기").addEventListener("click", async () =>
   document.getElementById("로그내용").style.display = "none";
   안내.textContent = "로그를 비웠습니다.";
 });
+
+
+/* ─────────────── 전송 진단 로그 (관찰 전용) ───────────────
+ * 저장 키는 sendLog 입니다. 수집용 diagLog 와 섞지 않습니다
+ * (tools/analyze-logs.mjs 가 diagLog 형태를 전제로 파싱하기 때문).
+ */
+
+document.getElementById("전송로그내려받기").addEventListener("click", async () => {
+  const 안내 = document.getElementById("전송로그안내");
+  try {
+    const { sendLog } = await chrome.storage.local.get("sendLog");
+    const 목록 = Array.isArray(sendLog) ? sendLog : [];
+    if (!목록.length) {
+      안내.textContent =
+        "아직 기록이 없습니다. 전송을 한 번 한 뒤 다시 눌러 주세요.";
+      return;
+    }
+    const 글 = JSON.stringify(목록, null, 2);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([글], { type: "application/json" }));
+    a.download = "3ai-send-log.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    안내.textContent = `내려받았습니다 — ${목록.length}건, ${글.length.toLocaleString("ko-KR")}자`;
+  } catch (e) {
+    안내.textContent = "내려받지 못했습니다: " + (e && e.message);
+  }
+});
+
+document.getElementById("전송로그비우기").addEventListener("click", async () => {
+  const 버튼 = document.getElementById("전송로그비우기");
+  const 안내 = document.getElementById("전송로그안내");
+  if (버튼.dataset.확인 !== "예") {
+    버튼.dataset.확인 = "예";
+    버튼.textContent = "정말 지울까요?";
+    setTimeout(() => {
+      버튼.dataset.확인 = "";
+      버튼.textContent = "전송 로그 비우기";
+    }, 4000);
+    return;
+  }
+  버튼.dataset.확인 = "";
+  버튼.textContent = "전송 로그 비우기";
+  await chrome.storage.local.remove("sendLog");
+  안내.textContent = "전송 로그를 비웠습니다.";
+});
