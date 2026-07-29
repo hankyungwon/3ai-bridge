@@ -734,7 +734,9 @@ document.getElementById("질문").addEventListener("keydown", (e) => {
     전송();
   }
 });
-document.getElementById("창정리버튼").addEventListener("click", () => {
+document.getElementById("창정리버튼").addEventListener("click", async () => {
+  // 정렬 = 원래 모습으로. 펼쳐 둔 패널을 먼저 접어야 창 높이와 내용이 맞습니다.
+  await 확장패널열기(false);
   chrome.runtime.sendMessage({ 종류: "창정리" });
 });
 document.getElementById("새대화버튼").addEventListener("click", () => {
@@ -871,3 +873,14 @@ document.getElementById("설정열기").addEventListener("click", (e) => {
 // ── v2 후보 (이번 버전에서는 만들지 않음) ──
 // - 세 답변을 모아 4번째 창에서 비교 요약
 // - 프로필 단축키 (Alt+1 / Alt+2 / Alt+3)
+
+
+/* 백그라운드가 "패널을 접으라"고 하면 접습니다.
+ * (단축키로 정렬했을 때도 명령바 안 상태가 창 크기와 어긋나지 않게)
+ */
+chrome.runtime.onMessage.addListener((메시지) => {
+  if (메시지 && 메시지.종류 === "패널접기" && 패널열림) {
+    패널열림 = false;
+    document.getElementById("확장패널").classList.add("숨김");
+  }
+});

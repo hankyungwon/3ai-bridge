@@ -7,15 +7,19 @@
   </head>
   <body class="설정">
     <h1>AI 3대장(제비·참새·하마) 카페 — 설정</h1>
+    <p class="설명">
+      평소에는 아래 <b>두 가지</b>만 보시면 됩니다. 창을 어떤 순서로 놓을지,
+      화면에 어떻게 펼칠지입니다. 나머지는 접어 두었습니다.
+    </p>
 
-    <h2>창 순서 (왼쪽 → 오른쪽)</h2>
+    <h2>① 창 순서 (왼쪽 → 오른쪽)</h2>
     <div class="줄">
       <select id="순서0"></select>
       <select id="순서1"></select>
       <select id="순서2"></select>
     </div>
 
-    <h2>창 배치 방식</h2>
+    <h2>② 창 배치 방식</h2>
     <p class="설명">
       <b>겹침 배치</b>는 노트북처럼 좁은 화면용입니다. 각 창이 화면의 절반 폭을
       차지하고, 가운데 창이 양옆 창을 반씩 가리며 맨 앞에 옵니다. 보고 싶은
@@ -33,23 +37,8 @@
       >
     </div>
 
-    <h2>진단 로그</h2>
-    <p class="설명">
-      「세 답변 복사」가 어떻게 동작했는지 기록해 둔 것입니다. 결과가 이상할 때
-      <b>전체 복사</b>를 눌러 그대로 붙여넣어 보내 주시면 원인을 찾을 수 있습니다.
-      질문·답변 본문 전체가 아니라 앞뒤 120자와 길이·선택자만 남습니다.
-    </p>
-    <div class="줄">
-      <button id="로그보기" type="button">최근 로그 보기</button>
-      <button id="로그복사" type="button">전체 복사</button>
-      <button id="로그비우기" type="button">로그 비우기</button>
-    </div>
-    <div id="로그안내" class="설명"></div>
-    <pre id="로그내용" style="
-      display:none; max-height:340px; overflow:auto; white-space:pre-wrap;
-      word-break:break-all; background:#f6f7f9; border:1px solid #e2e5ea;
-      border-radius:8px; padding:10px; font-size:12px; line-height:1.5;"></pre>
-
+    <details class="더보기">
+      <summary>가끔 쓰는 설정 (프로필·접두어·자동 열기·진단 로그)</summary>
     <h2>크롬 시작</h2>
     <p class="설명">
       켜 두면 크롬을 실행할 때 3대장 창과 명령바가 자동으로 열립니다.
@@ -78,6 +67,25 @@
     </p>
     <div id="프로필목록"></div>
     <button id="프로필추가" class="보조">＋ 프로필 추가</button>
+
+    <h2>진단 로그</h2>
+    <p class="설명">
+      「세 답변 복사」가 어떻게 동작했는지 기록해 둔 것입니다. 결과가 이상할 때
+      <b>전체 복사</b>를 눌러 그대로 붙여넣어 보내 주시면 원인을 찾을 수 있습니다.
+      질문·답변 본문 전체가 아니라 앞뒤 120자와 길이·선택자만 남습니다.
+    </p>
+    <div class="줄">
+      <button id="로그보기" type="button">최근 로그 보기</button>
+      <button id="로그복사" type="button">전체 복사</button>
+      <button id="로그비우기" type="button">로그 비우기</button>
+    </div>
+    <div id="로그안내" class="설명"></div>
+    <pre id="로그내용" style="
+      display:none; max-height:340px; overflow:auto; white-space:pre-wrap;
+      word-break:break-all; background:#f6f7f9; border:1px solid #e2e5ea;
+      border-radius:8px; padding:10px; font-size:12px; line-height:1.5;"></pre>
+
+    </details>
 
     <div class="줄 저장줄">
       <button id="저장" class="주요">저장</button>
