@@ -36,21 +36,38 @@
       <div class="제어칸">
         <div class="제어줄">
           <span id="전환줄" class="전환묶음" title="창 전환 — 누르면 그 창이 앞으로"></span>
-          <button id="창정리버튼" class="보조" title="창 배치 정렬 (윈도우 Alt+3 · 맥 ⌃3)">정렬</button>
+          <button id="창정리버튼" class="보조" title="세 창을 화면에 다시 가지런히 놓고, 펼친 이력은 접습니다 (윈도우 Alt+3 · 맥 ⌃3)">정렬(기본 보기)</button>
         </div>
-        <!-- 표시 조절 바: 글자 크기 · 서체 · 고대비 (입력 가독성 전용) -->
+        <!-- 표시 조절 바: 아래 입력칸의 글자만 바꿉니다 (AI 창 글자는 그대로) -->
         <div class="제어줄 표시조절바">
-          <span class="조절조" title="입력 글자 크기">
-            <button id="글자작게" class="보조 조절버튼">A−</button>
-            <span id="글자크기표시" class="조절값">17px</span>
-            <button id="글자크게" class="보조 조절버튼">A+</button>
+          <!-- 글자 크기: 위 창 전환처럼 하나의 알약으로 묶어 한 덩어리로 보이게 -->
+          <span class="조절라벨">글자</span>
+          <span class="조절묶음" title="입력칸 글자 크기">
+            <button id="글자작게" class="조절버튼" title="한 단계 작게">A−</button>
+            <button
+              id="글자크기표시"
+              class="조절버튼 조절값"
+              title="눌러서 기본 크기(17px)로 되돌리기"
+            >
+              17px
+            </button>
+            <button id="글자크게" class="조절버튼" title="한 단계 크게">A+</button>
           </span>
-          <span class="조절조" title="입력 서체">
-            <button id="서체기본" class="보조 서체버튼" data-서체="기본">기본</button>
-            <button id="서체가독" class="보조 서체버튼" data-서체="가독형">가독형</button>
-            <button id="서체고정" class="보조 서체버튼" data-서체="고정폭">고정폭</button>
+
+          <!-- 글꼴: 같은 알약 모양. "기본"이 크기의 기본으로 오해되지 않도록
+               글꼴 이름 자체로 바꿨습니다. -->
+          <span class="조절라벨">글꼴</span>
+          <span class="조절묶음" title="입력칸 글꼴">
+            <button id="서체기본" class="조절버튼 서체버튼" data-서체="기본"
+              title="맥·윈도우가 원래 쓰는 글꼴">시스템</button>
+            <button id="서체가독" class="조절버튼 서체버튼" data-서체="가독형"
+              title="획이 굵고 자간이 넓어 눈이 덜 피로한 글꼴 (Pretendard)">또렷</button>
+            <button id="서체고정" class="조절버튼 서체버튼" data-서체="고정폭"
+              title="모든 글자 폭이 같아 코드·표를 읽기 좋은 글꼴 (D2Coding)">고정폭</button>
           </span>
-          <button id="고대비토글" class="보조" title="글자를 더 밝게, 입력창을 더 어둡게">고대비</button>
+
+          <button id="고대비토글" class="보조"
+            title="켜면 입력칸 글자가 더 밝아지고 배경이 더 어두워집니다 (밝은 곳에서 읽기 좋게)">고대비</button>
         </div>
         <div class="제어줄">
           <button id="새대화버튼" class="보조" title="세 사이트 모두 새 대화로">새 대화</button>

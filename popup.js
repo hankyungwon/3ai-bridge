@@ -236,6 +236,12 @@ async function 표시설정초기화() {
   );
   await 고대비적용(고대비, false);
 
+  // 가운데 크기 표시를 누르면 기본 크기로 돌아갑니다.
+  // (A−를 여러 번 누르지 않아도 되게. 크기 그룹 안에서만 도는 개념입니다)
+  document.getElementById("글자크기표시").addEventListener("click", async () => {
+    await 글자크기적용(기본글자크기);
+  });
+
   document.getElementById("글자작게").addEventListener("click", async () => {
     const 지금 = parseInt(document.getElementById("글자크기표시").textContent, 10);
     const i = 글자크기단계.indexOf(지금);
