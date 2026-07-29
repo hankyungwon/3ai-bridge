@@ -100,9 +100,43 @@ if [ ! -d "$tmp/3ai-bridge-main" ]; then
   exit 1
 fi
 
-if ! /bin/cp -R "$tmp/3ai-bridge-main/." "$TARGET/" 2>/dev/null; then
-  notify "폴더에 쓰지 못했습니다. 권한을 확인해 주세요.\n\n폴더: $TARGET"
-  exit 1
+# ── 덮어쓰기 ────────────────────────────────────────────────
+# ★ 자기 자신(업데이트.app)은 통째 덮어쓸 수 없습니다. ★
+#   실행 중인 프로그램 파일은 macOS 가 덮어쓰기를 막습니다(Text file busy).
+#   그래서 (1) 자기 자신을 뺀 나머지를 먼저 복사하고,
+#          (2) 자기 자신은 "지우고 새로 만들기"로 갈아 끼웁니다.
+#   지우기는 허용되며, 실행 중인 이 프로세스는 영향받지 않습니다.
+
+SELF_NAME="업데이트.app"
+copy_fail=""
+
+for item in "$tmp/3ai-bridge-main/"* "$tmp/3ai-bridge-main/".[!.]*; do
+  [ -e "$item" ] || continue
+  base="$(/usr/bin/basename "$item")"
+  [ "$base" = "$SELF_NAME" ] && continue      # 자기 자신은 아래에서 따로
+  if ! /usr/bin/ditto "$item" "$TARGET/$base" 2>/dev/null; then
+    copy_fail="$copy_fail $base"
+  fi
+done
+
+# 자기 자신 갈아 끼우기 — 실패해도 본 업데이트는 이미 끝났으므로 계속합니다.
+if [ -d "$tmp/3ai-bridge-main/$SELF_NAME" ]; then
+  /bin/rm -rf "$TARGET/$SELF_NAME.old" 2>/dev/null
+  /bin/mv "$TARGET/$SELF_NAME" "$TARGET/$SELF_NAME.old" 2>/dev/null
+  if /usr/bin/ditto "$tmp/3ai-bridge-main/$SELF_NAME" "$TARGET/$SELF_NAME" 2>/dev/null; then
+    /bin/rm -rf "$TARGET/$SELF_NAME.old" 2>/dev/null
+  else
+    # 새로 넣지 못했으면 쓰던 것을 되돌려 놓습니다(앱이 사라지지 않게).
+    /bin/mv "$TARGET/$SELF_NAME.old" "$TARGET/$SELF_NAME" 2>/dev/null
+  fi
+fi
+
+# manifest.json 이 안 바뀌었으면 진짜 실패입니다.
+if [ ! -f "$TARGET/manifest.json" ] || [ -n "$copy_fail" ]; then
+  if [ ! -w "$TARGET" ] || [ ! -f "$TARGET/manifest.json" ]; then
+    notify "폴더에 쓰지 못했습니다.\n\n폴더: $TARGET\n\n맥이 '서류' 폴더 접근을 막고 있을 수 있습니다.\n시스템 설정 → 개인정보 보호 및 보안 → 파일 및 폴더 에서\n'3대장 업데이트'에 서류 폴더 접근을 허용해 주세요.\n\n또는 폴더를 바탕화면으로 옮긴 뒤 다시 시도해 보세요."
+    exit 1
+  fi
 fi
 
 # 실행 권한과 격리 표시 정리 — 다음 번에도 더블클릭이 되게, 그리고
@@ -124,8 +158,14 @@ if [ -z "$after" ]; then
   exit 1
 fi
 
+# 일부 파일만 못 옮긴 경우에도 그 사실을 숨기지 않습니다.
+partial=""
+if [ -n "$copy_fail" ]; then
+  partial="\n\n※ 다음 항목은 옮기지 못했습니다:$copy_fail"
+fi
+
 if [ "$before" = "$after" ]; then
-  notify "이미 최신입니다 — 버전 $after\n\n폴더: $TARGET\n\n크롬에 반영이 안 돼 있다면 chrome://extensions 에서\n'AI 3대장 카페' 카드의 새로고침(⟳)을 눌러 주세요."
+  notify "이미 최신입니다 — 버전 $after\n\n폴더: $TARGET$partial\n\n크롬에 반영이 안 돼 있다면 chrome://extensions 에서\n'AI 3대장 카페' 카드의 새로고침(⟳)을 눌러 주세요."
 else
-  notify "업데이트 완료 — $before → $after\n\n폴더: $TARGET\n\n이제 크롬에서 chrome://extensions 를 열고\n'AI 3대장 카페' 카드의 새로고침(⟳)을 한 번 눌러 주세요."
+  notify "업데이트 완료 — $before → $after\n\n폴더: $TARGET$partial\n\n이제 크롬에서 chrome://extensions 를 열고\n'AI 3대장 카페' 카드의 새로고침(⟳)을 한 번 눌러 주세요."
 fi
