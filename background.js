@@ -177,11 +177,16 @@ async function 사이트창배치(사이트키, 위치) {
  * - 방금 만든/찾은 탭의 ID 지도를 반환해, 전송 단계가 탭을 다시 검색하다
  *   놓치는 일이 없게 합니다.
  */
-async function 창정리() {
+async function 창정리(짝 = null) {
   const 설정 = await 설정불러오기();
-  const 순서 = 설정.창순서;
+  const 전체순서 = 설정.창순서;
+  // 짝(2곳)이 주어지면 그 두 곳만 배치합니다. 나머지 한 곳은 아래에서
+  // 최소화(닫지 않음)해 대화를 그대로 보존합니다.
+  const 짝모드 = Array.isArray(짝) && 짝.length === 2;
+  const 순서 = 짝모드 ? 전체순서.filter((키) => 짝.includes(키)) : [...전체순서];
   const 영역 = await 화면영역구하기();
-  const 모드 = 실효배치모드(설정, 영역);
+  // 두 곳만 띄울 때는 좌우로 화면을 꽉 채웁니다(겹침 없음).
+  const 모드 = 순서.length === 2 ? "thirds" : 실효배치모드(설정, 영역);
 
   // 1) 명령바를 먼저 화면 하단에 놓고, 실제로 놓인 위치를 읽습니다.
   //    (운영체제·배율·작업표시줄에 따라 계산과 실제가 다를 수 있으므로 실측 기준)
@@ -200,7 +205,9 @@ async function 창정리() {
 
   // 겹침 모드에서는 가운데(순서[1])를 마지막에 처리해 맨 앞에 오게 합니다.
   const 처리순서 =
-    모드 === "overlap" ? [순서[0], 순서[2], 순서[1]] : [...순서];
+    모드 === "overlap" && 순서.length === 3
+      ? [순서[0], 순서[2], 순서[1]]
+      : [...순서];
 
   for (const 사이트키 of 처리순서) {
     try {
@@ -210,6 +217,23 @@ async function 창정리() {
       탭지도[사이트키] = null;
     }
   }
+
+  // 짝 모드에서 빠진 곳은 닫지 않고 최소화만 합니다.
+  // (창을 닫으면 대화가 사라지므로, 나중에 정렬을 누르면 그대로 되살아나게)
+  if (짝모드) {
+    for (const 사이트키 of 전체순서) {
+      if (순서.includes(사이트키)) continue;
+      try {
+        const 탭 = await 기존탭찾기(사이트키);
+        if (탭) await chrome.windows.update(탭.windowId, { state: "minimized" });
+      } catch (e) {
+        /* 최소화 실패는 나머지 배치에 영향 주지 않음 */
+      }
+    }
+  }
+  // 지금 어떤 짝으로 보고 있는지 기억합니다(전송·수집 대상 판단용).
+  // 세 창 배치일 때는 null 로 되돌려 "기본 보기"로 돌아갑니다.
+  await chrome.storage.session.set({ 현재짝: 짝모드 ? 순서 : null });
 
   // 겹침 모드: 가운데 창을 앞으로 (호버 포커스 판단용으로 모드도 기억)
   await chrome.storage.session.set({ 현재배치모드: 모드 });
@@ -245,6 +269,12 @@ async function 창정리() {
 /** 세 사이트의 전용 창(또는 탭)을 한 번에 닫습니다. */
 async function 모두닫기() {
   const 설정 = await 설정불러오기();
+  // 창을 다 닫으면 둘만 보기 상태도 없앱니다(다음엔 기본 보기로).
+  try {
+    await chrome.storage.session.set({ 현재짝: null });
+  } catch (e) {
+    /* 무시 */
+  }
   for (const 사이트키 of 설정.창순서) {
     try {
       const 탭 = await 기존탭찾기(사이트키);
@@ -605,8 +635,15 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
       // [진단 계측 전용] 수집 1회를 묶는 ID. 동작에는 쓰이지 않습니다.
       const runId = 진단아이디만들기();
       const 진단모음 = [];
+      // 짝 모드면 그 두 곳만 걷습니다(최소화된 곳은 대상에서 빼서
+      // "창이 열려 있지 않음" 같은 헛된 실패 보고가 나오지 않게).
+      const { 현재짝 } = await chrome.storage.session.get("현재짝");
+      const 수집대상 =
+        Array.isArray(현재짝) && 현재짝.length === 2
+          ? 설정.창순서.filter((키) => 현재짝.includes(키))
+          : 설정.창순서;
       await Promise.all(
-        설정.창순서.map(async (사이트키) => {
+        수집대상.map(async (사이트키) => {
           const 이름 = BRIDGE_SELECTORS[사이트키].이름;
           try {
             const 탭 = await 기존탭찾기(사이트키);
@@ -738,7 +775,11 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
     // 명령바 높이와 실제 내용 높이를 일치시킵니다.
     // (예전에는 패널이 펼쳐진 채 창만 줄어들어 내용이 겹쳐 보였습니다)
     패널접기알림();
-    창정리() // 명령바를 하단에 스냅하고 AI 창들을 그 위에 맞춰 배치
+    // 짝(2곳)이 함께 오면 그 두 곳만 좌우로 꽉 채워 배치합니다.
+    // 짝이 없으면(정렬 버튼) 세 창 기본 보기로 되돌립니다.
+    const 요청짝 =
+      Array.isArray(메시지.짝) && 메시지.짝.length === 2 ? 메시지.짝 : null;
+    창정리(요청짝) // 명령바를 하단에 스냅하고 AI 창들을 그 위에 맞춰 배치
       .then(() => 명령창앞으로())
       .then(() => 응답({ 성공: true }));
     return true; // 비동기 응답을 쓰겠다는 표시
@@ -753,7 +794,12 @@ chrome.runtime.onMessage.addListener((메시지, 발신, 응답) => {
         설정.프로필[0] ||
         null;
 
-      const 대상 = 설정.창순서.filter((키) => 메시지.사이트사용[키]);
+      // 짝 모드로 보고 있으면 그 두 곳에만 보냅니다.
+      const { 현재짝 } = await chrome.storage.session.get("현재짝");
+      const 짝목록 = Array.isArray(현재짝) && 현재짝.length === 2 ? 현재짝 : null;
+      const 대상 = 설정.창순서.filter(
+        (키) => 메시지.사이트사용[키] && (!짝목록 || 짝목록.includes(키))
+      );
 
       // 답변 진행 상태를 초기화하고, 자동 보관을 위해 질문을 기억해 둡니다.
       const 초기상태 = {};
