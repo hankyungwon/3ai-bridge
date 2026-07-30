@@ -165,6 +165,20 @@ fi
 /bin/chmod +x "$TARGET/업데이트.command" 2>/dev/null
 /usr/bin/xattr -dr com.apple.quarantine "$TARGET" 2>/dev/null
 
+# ── 아이콘 캐시 갱신 ──────────────────────────────────────
+# 맥은 앱 아이콘을 "번들 ID + 버전"으로 캐시합니다(LaunchServices).
+# 아이콘만 바뀌고 버전이 그대로면 Dock 이 옛 아이콘을 계속 씁니다.
+# (실제로 카페열기.app 이 오래 v1.14.0 에 멈춰 있어, Finder 에는 새 아이콘이
+#  보이는데 Dock 으로 끌어다 놓으면 옛 커피잔이 되살아났습니다)
+# 버전은 릴리스마다 올리고 있고, 여기서 한 번 더 확실히 다시 등록시킵니다.
+LSREG="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+if [ -x "$LSREG" ]; then
+  "$LSREG" -f "$TARGET/카페열기.app" >/dev/null 2>&1
+  "$LSREG" -f "$TARGET/업데이트.app" >/dev/null 2>&1
+fi
+# 파일 시각도 새로 찍어 Finder 가 다시 읽게 합니다.
+/usr/bin/touch "$TARGET/카페열기.app" "$TARGET/업데이트.app" 2>/dev/null
+
 # 다음 실행을 위해 이 폴더를 기억해 둡니다.
 /bin/mkdir -p "$(/usr/bin/dirname "$MEMO")" 2>/dev/null
 /bin/echo "$TARGET" > "$MEMO" 2>/dev/null
