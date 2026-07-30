@@ -1521,3 +1521,39 @@ body.바 #첨부버튼 {
   height: 31px;
   padding: 0 12px;
 }
+
+
+/* ── v1.23 프롬프트 표식: 글자 ❯ → 작은 삼지창 ──
+ * 검은 바탕에 흰 꺾쇠 하나는 너무 밋밋했습니다.
+ * 확장 아이콘과 같은 삼지창을 작게 새겨, 명령바를 볼 때마다
+ * "셋에게 한 번에 보낸다"는 것이 눈에 들어오게 했습니다.
+ * 색은 쓰지 않고 명도만 씁니다 (청록은 전송 버튼과 활성 탭에만).
+ */
+body.바 .프롬프트기호 {
+  display: inline-flex;
+  align-items: flex-start;
+  flex: none;
+  padding: 3px 2px 0 0;
+  color: var(--text-dim);
+  user-select: none;
+  transition: color 0.18s ease, opacity 0.18s ease;
+  opacity: 0.85;
+}
+/* 글을 쓰려고 칸을 누르면 표식이 조금 또렷해집니다 (아주 작은 반응) */
+body.바 .작성칸:focus-within .프롬프트기호 {
+  opacity: 1;
+}
+/* 내용이 들어오면 본문색으로 — 상태 표시등 역할 */
+body.바 .작성칸.내용있음 .프롬프트기호 {
+  color: var(--text);
+  opacity: 1;
+}
+/* 장식 커서 _ 는 삼지창 옆에 놓입니다 */
+body.바 .깜박커서 {
+  left: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.바 .프롬프트기호 {
+    transition: none;
+  }
+}

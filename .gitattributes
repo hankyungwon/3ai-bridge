@@ -7,3 +7,7 @@
 카페열기.app/Contents/MacOS/cafe text eol=lf
 업데이트.app/Contents/MacOS/update text eol=lf
 업데이트.app/Contents/Resources/icon.icns binary
+
+# 파이썬 캐시
+__pycache__/
+*.pyc

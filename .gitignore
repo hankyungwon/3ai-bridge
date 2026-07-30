@@ -1,0 +1,8 @@
+# 파이썬 캐시 (아이콘 생성 스크립트 실행 시 생김)
+__pycache__/
+*.pyc
+
+# 진단 시험 중 생기는 임시 파일
+payload-P*.txt
+*-diag-logs.json
+3ai-send-log.json
