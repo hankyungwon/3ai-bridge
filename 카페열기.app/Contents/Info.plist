@@ -7,11 +7,11 @@
 	<key>CFBundleDisplayName</key>
 	<string>AI 3대장 카페</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.hankyungwon.ai3cafe</string>
+	<string>com.hankyungwon.ai3cafe.trident</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.23.1</string>
+	<string>1.23.2</string>
 	<key>CFBundleVersion</key>
-	<string>1.23.1</string>
+	<string>1.23.2</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleExecutable</key>
