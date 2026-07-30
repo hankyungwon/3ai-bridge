@@ -172,9 +172,11 @@ fi
 #  보이는데 Dock 으로 끌어다 놓으면 옛 커피잔이 되살아났습니다)
 # 버전은 릴리스마다 올리고 있고, 여기서 한 번 더 확실히 다시 등록시킵니다.
 LSREG="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+# -f 는 강제 재등록, -R 은 묶음 안까지 훑기.
+# (예전 안내에 있던 -kill 은 최신 macOS 에서 제거되었으므로 쓰지 않습니다)
 if [ -x "$LSREG" ]; then
-  "$LSREG" -f "$TARGET/카페열기.app" >/dev/null 2>&1
-  "$LSREG" -f "$TARGET/업데이트.app" >/dev/null 2>&1
+  "$LSREG" -f -R "$TARGET/카페열기.app" >/dev/null 2>&1
+  "$LSREG" -f -R "$TARGET/업데이트.app" >/dev/null 2>&1
 fi
 # 파일 시각도 새로 찍어 Finder 가 다시 읽게 합니다.
 /usr/bin/touch "$TARGET/카페열기.app" "$TARGET/업데이트.app" 2>/dev/null
