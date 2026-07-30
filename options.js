@@ -215,7 +215,7 @@ document.getElementById("로그보기").addEventListener("click", async () => {
   if (!기록.length) {
     상자.style.display = "none";
     안내.textContent =
-      "아직 기록이 없습니다. 「세 답변 복사」를 한 번 누른 뒤 다시 보십시오.";
+      "아직 기록이 없습니다. 「답변 모으기」를 한 번 누른 뒤 다시 보십시오.";
     return;
   }
   const 줄 = [];

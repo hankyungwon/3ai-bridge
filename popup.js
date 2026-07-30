@@ -36,6 +36,7 @@ async function 초기화() {
     전환줄.appendChild(버튼);
   });
   await 전면표시갱신();
+  await 짝표시갱신(); // 둘만 보기 중이면 그 알약을 켜 둡니다
 
   const 질문칸 = document.getElementById("질문");
   질문칸.focus();
@@ -623,7 +624,9 @@ async function 클립보드복사(글) {
 }
 
 /**
- * 세 답변 복사 — 세 AI의 최신 답변을 한 문서로 합쳐 클립보드에 넣습니다.
+ * 답변 모으기 — 지금 띄워 둔 AI들의 최신 답변을 한 문서로 합쳐 클립보드에
+ * 넣습니다. 둘만 보기(짝) 상태면 그 두 곳만 모읍니다 — 최소화해 둔 곳은
+ * 대상에서 빠지므로 "창이 열려 있지 않음" 같은 헛된 실패가 나오지 않습니다.
  * 화면 배치는 건드리지 않습니다. (예전에는 패널이 펼쳐지며 입력창을 가렸음)
  * 복사한 뒤 한글·워드·입력창 어디에나 바로 붙여넣으면 됩니다.
  */
@@ -650,7 +653,7 @@ async function 답변모으기() {
       토스트(
         [
           글줄(`복사할 답변이 없습니다 — ${실패한곳.join(", ")}`, "실패"),
-          글줄("세 AI가 답을 다 쓴 뒤에 눌러 주세요.", "안내"),
+          글줄("띄워 둔 AI가 답을 다 쓴 뒤에 눌러 주세요.", "안내"),
         ],
         9000
       );
@@ -694,7 +697,7 @@ async function 답변모으기() {
     );
   } finally {
     버튼.disabled = false;
-    버튼.textContent = "세 답변 복사";
+    버튼.textContent = "답변 모으기";
   }
 }
 
@@ -728,7 +731,9 @@ async function 전송() {
       질문,
       첨부: 보낼첨부.map((f) => ({ 이름: f.이름, 종류: f.종류, 자료: f.자료 })),
       프로필ID: 프로필 ? 프로필.id : "표준",
-      // 명령바에서 대상 선택을 없앴으므로 항상 세 곳 모두에 보냅니다.
+      // 명령바에서 대상 선택을 없앴으므로 세 곳 모두를 후보로 올립니다.
+      // 실제 대상은 백그라운드가 "지금 띄워 둔 곳"으로 좁힙니다 —
+      // 둘만 보기(짝) 중이면 그 두 곳에만 전달됩니다.
       사이트사용: { claude: true, chatgpt: true, gemini: true },
     });
     상태표시((응답 && 응답.결과들) || []);
@@ -781,7 +786,42 @@ document.getElementById("질문").addEventListener("keydown", (e) => {
 document.getElementById("창정리버튼").addEventListener("click", async () => {
   // 정렬 = 원래 모습으로. 펼쳐 둔 패널을 먼저 접어야 창 높이와 내용이 맞습니다.
   await 확장패널열기(false);
+  // 짝을 빼고 보내면 백그라운드가 세 창 기본 보기로 되돌립니다.
   chrome.runtime.sendMessage({ 종류: "창정리" });
+  await 짝표시갱신();
+});
+
+/* ── 둘만 보기(짝) ──
+ * 셋 중 두 곳만 좌우로 화면을 꽉 채워 띄웁니다. 빠진 곳은 닫지 않고
+ * 최소화만 하므로 대화가 그대로 남고, 정렬(기본 보기)를 누르면 되살아납니다.
+ * 짝은 기억하지 않습니다 — 카페는 언제나 세 창(기본 보기)으로 시작합니다.
+ */
+async function 짝표시갱신() {
+  const { 현재짝 } = await chrome.storage.session.get("현재짝");
+  const 짝 = Array.isArray(현재짝) && 현재짝.length === 2 ? 현재짝 : null;
+  document.querySelectorAll(".짝버튼").forEach((b) => {
+    const 값 = (b.dataset.짝 || "").split(",");
+    b.classList.toggle(
+      "선택됨",
+      !!짝 && 값.length === 2 && 값.every((키) => 짝.includes(키))
+    );
+  });
+  // 지금 안 보이는 창의 전환 탭을 흐리게 해, 눌러도 안 되는 게 아니라
+  // "최소화되어 있다"는 것을 알 수 있게 합니다.
+  document.querySelectorAll(".전환버튼").forEach((b) => {
+    b.classList.toggle("빠짐", !!짝 && !짝.includes(b.dataset.사이트));
+  });
+}
+
+document.querySelectorAll(".짝버튼").forEach((버튼) => {
+  버튼.addEventListener("click", async () => {
+    const 짝 = (버튼.dataset.짝 || "").split(",").filter(Boolean);
+    if (짝.length !== 2) return;
+    await 확장패널열기(false);
+    await chrome.runtime.sendMessage({ 종류: "창정리", 짝 });
+    await 짝표시갱신();
+    await 전면표시갱신();
+  });
 });
 document.getElementById("새대화버튼").addEventListener("click", () => {
   chrome.runtime.sendMessage({ 종류: "새대화" });
@@ -809,7 +849,7 @@ function 모두닫기확인해제() {
   }
   // 2단계: 실행
   모두닫기확인해제();
-  chrome.runtime.sendMessage({ 종류: "모두닫기" });
+  chrome.runtime.sendMessage({ 종류: "모두닫기" }).then(() => 짝표시갱신());
   토스트([글줄("세 AI 창을 닫았습니다. [정렬] 또는 Alt+3 으로 다시 엽니다.")], 6000);
 });
 // 이력 지우기: confirm 대화상자 대신 링크가 "정말 지우기?"로 바뀌는 2단 확인
