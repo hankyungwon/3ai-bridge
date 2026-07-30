@@ -6,3 +6,9 @@ __pycache__/
 payload-P*.txt
 *-diag-logs.json
 3ai-send-log.json
+
+# 시험용으로만 설치하는 꾸러미 — 저장소에 담지 않습니다.
+# (v1.24.0 커밋에 node_modules 176개 파일이 딸려 들어간 일이 있었습니다)
+node_modules/
+package.json
+package-lock.json
